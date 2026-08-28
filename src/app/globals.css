@@ -1,0 +1,9 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+:root { color-scheme: light; }
+body { @apply bg-zinc-50 text-ink antialiased; }
+.card { @apply bg-white rounded-3xl shadow-sm border border-zinc-100 p-4 md:p-6; }
+.btn-primary { @apply bg-brand-600 hover:bg-brand-700 text-white rounded-2xl px-5 py-3 font-semibold transition; }
+.btn-ghost { @apply bg-zinc-100 hover:bg-zinc-200 rounded-2xl px-5 py-3 font-medium; }
+.badge { @apply inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold; }

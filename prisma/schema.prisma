@@ -1,0 +1,217 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ============ CORE ============
+model Inquilino {
+  id               String   @id @default(cuid())
+  nome             String
+  email            String   @unique
+  telefone         String?
+  cpfCnpj          String   @unique // criptografado em repouso via app-layer
+  cpfCnpjHash      String   @unique // hash para busca
+  senhaHash        String
+  mfaEnabled       Boolean  @default(false)
+  mfaSecret        String?  // TOTP secret criptografado
+  ativo            Boolean  @default(true)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  unidades         UnidadeInquilino[]
+  sessoes          Sessao[]
+  notificacoes     Notificacao[]
+  contestacoes     Contestacao[]
+  chamados         Chamado[]
+  comprovantes     ComprovantePix[]
+}
+
+model Unidade {
+  id               String   @id @default(cuid())
+  bloco            String?
+  numero           String
+  identificacao    String   @unique // ex: BL-A-101
+  tipo             String   @default("APARTAMENTO")
+  createdAt        DateTime @default(now())
+
+  inquilinos       UnidadeInquilino[]
+  leituras         Leitura[]
+  faturas          Fatura[]
+}
+
+model UnidadeInquilino {
+  id          String   @id @default(cuid())
+  inquilinoId String
+  unidadeId   String
+  contratoId  String?  @unique
+  papel       String   @default("TITULAR") // TITULAR | DEPENDENTE
+  createdAt   DateTime @default(now())
+
+  inquilino   Inquilino @relation(fields: [inquilinoId], references: [id], onDelete: Cascade)
+  unidade     Unidade   @relation(fields: [unidadeId], references: [id], onDelete: Cascade)
+  contrato    Contrato? @relation(fields: [contratoId], references: [id])
+
+  @@unique([inquilinoId, unidadeId])
+}
+
+model Contrato {
+  id          String   @id @default(cuid())
+  numero      String   @unique
+  inicio      DateTime
+  fim         DateTime?
+  valor       Decimal?
+  createdAt   DateTime @default(now())
+
+  vinculo     UnidadeInquilino?
+}
+
+// ============ LEITURAS ============
+model Leitura {
+  id               String      @id @default(cuid())
+  unidadeId        String
+  tipo             String
+  referencia       String      // YYYY-MM
+  leituraAnterior  Float
+  leituraAtual     Float
+  consumo          Float       // kWh ou m³
+  tarifa           Decimal?    // R$/kWh ou R$/m³
+  bandeira         String?
+  dataLeitura      DateTime
+  createdAt        DateTime    @default(now())
+
+  unidade          Unidade     @relation(fields: [unidadeId], references: [id], onDelete: Cascade)
+
+  @@unique([unidadeId, tipo, referencia])
+  @@index([unidadeId, tipo])
+}
+
+// ============ FATURAS ============
+model Fatura {
+  id               String       @id @default(cuid())
+  unidadeId        String
+  tipo             String
+  referencia       String       // YYYY-MM
+  valorTotal       Decimal
+  rateioValor      Decimal?
+  criterioRateio   String?
+  dataEmissao      DateTime
+  dataVencimento   DateTime
+  dataPagamento    DateTime?
+  status           String @default("ABERTA")
+  codigoBarras     String?
+  linhaDigitavel   String?
+  // PIX
+  pixTxId          String?      @unique
+  pixQrCode        String?      // payload copia e cola
+  pixQrImage       String?      // base64 ou url
+  createdAt        DateTime     @default(now())
+
+  unidade          Unidade      @relation(fields: [unidadeId], references: [id], onDelete: Cascade)
+  contestacoes     Contestacao[]
+  comprovantes     ComprovantePix[]
+
+  @@index([unidadeId, referencia])
+}
+
+model ComprovantePix {
+  id          String   @id @default(cuid())
+  faturaId    String
+  inquilinoId String
+  arquivoUrl  String
+  valor       Decimal?
+  createdAt   DateTime @default(now())
+
+  fatura      Fatura   @relation(fields: [faturaId], references: [id], onDelete: Cascade)
+  inquilino   Inquilino @relation(fields: [inquilinoId], references: [id], onDelete: Cascade)
+}
+
+// ============ CONTESTACAO ============
+model Contestacao {
+  id          String                @id @default(cuid())
+  faturaId    String?
+  inquilinoId String
+  categoria   String
+  motivo      String
+  status      String     @default("ABERTO")
+  createdAt   DateTime              @default(now())
+  updatedAt   DateTime              @updatedAt
+
+  fatura      Fatura?   @relation(fields: [faturaId], references: [id])
+  inquilino   Inquilino @relation(fields: [inquilinoId], references: [id], onDelete: Cascade)
+  anexos      Anexo[]
+  mensagens   MensagemContestacao[]
+}
+
+model Anexo {
+  id            String      @id @default(cuid())
+  contestacaoId String
+  url           String
+  nome          String
+  tipo          String?
+  createdAt     DateTime    @default(now())
+  contestacao   Contestacao @relation(fields: [contestacaoId], references: [id], onDelete: Cascade)
+}
+
+model MensagemContestacao {
+  id            String      @id @default(cuid())
+  contestacaoId String
+  autorTipo     String      // INQUILINO | ATENDENTE | SISTEMA
+  autorId       String?
+  texto         String
+  createdAt     DateTime    @default(now())
+  contestacao   Contestacao @relation(fields: [contestacaoId], references: [id], onDelete: Cascade)
+}
+
+// ============ ATENDIMENTO ============
+model Chamado {
+  id          String           @id @default(cuid())
+  inquilinoId String
+  categoria   String
+  assunto     String
+  status      String    @default("ABERTO")
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  inquilino   Inquilino        @relation(fields: [inquilinoId], references: [id], onDelete: Cascade)
+  mensagens   MensagemChat[]
+}
+
+model MensagemChat {
+  id        String   @id @default(cuid())
+  chamadoId String
+  autorTipo String   // INQUILINO | ATENDENTE | SISTEMA
+  autorId   String?
+  texto     String
+  createdAt DateTime @default(now())
+  chamado   Chamado  @relation(fields: [chamadoId], references: [id], onDelete: Cascade)
+}
+
+// ============ NOTIFICACOES ============
+model Notificacao {
+  id          String          @id @default(cuid())
+  inquilinoId String
+  tipo        String
+  canal       String @default("SISTEMA")
+  titulo      String
+  mensagem    String
+  lida        Boolean         @default(false)
+  createdAt   DateTime        @default(now())
+  inquilino   Inquilino       @relation(fields: [inquilinoId], references: [id], onDelete: Cascade)
+}
+
+// ============ SESSAO ============
+model Sessao {
+  id           String   @id @default(cuid())
+  inquilinoId  String
+  refreshToken String   @unique // hash
+  userAgent    String?
+  ip           String?
+  expiraEm     DateTime
+  revogada     Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  inquilino    Inquilino @relation(fields: [inquilinoId], references: [id], onDelete: Cascade)
+}
