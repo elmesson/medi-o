@@ -41,7 +41,7 @@ export async function POST(req: NextRequest) {
 export async function PUT(req: NextRequest) {
   const master = await requireMaster();
   if (!master) return NextResponse.json({ error: "Acesso master requerido" }, { status: 403 });
-  const { id, nome, email, telefone, documento, papel, ativo, unidadeIds } = await req.json();
+  const { id, nome, email, telefone, documento, papel, ativo, unidadeIds, novaSenha } = await req.json();
   const data:any = {};
   if (nome !== undefined) data.nome = nome;
   if (email !== undefined) data.email = email;
@@ -52,6 +52,10 @@ export async function PUT(req: NextRequest) {
     data.papel = papel;
   }
   if (ativo !== undefined) data.ativo = ativo;
+  if (novaSenha) {
+    if (novaSenha.length < 6) return NextResponse.json({ error: "senha mínima 6 caracteres" }, { status: 400 });
+    data.senhaHash = await hashPassword(novaSenha);
+  }
   const updated = await prisma.administrador.update({ where: { id }, data });
   if (unidadeIds) {
     await prisma.administradorUnidade.deleteMany({ where: { administradorId: id } });

@@ -26,7 +26,7 @@ export default function AdministradoresPage(){
   }
   function iniciarEdicao(item:any){
     setEdit(item);
-    setEditForm({ nome: item.nome, email: item.email, telefone: item.telefone||"", documento: item.documento||"", papel: item.papel, ativo: item.ativo });
+    setEditForm({ nome: item.nome, email: item.email, telefone: item.telefone||"", documento: item.documento||"", papel: item.papel, ativo: item.ativo, novaSenha: "" });
   }
   async function salvarEdicao(e: React.FormEvent){
     e.preventDefault();
@@ -104,6 +104,7 @@ export default function AdministradoresPage(){
               <label className="text-sm">CPF/CNPJ<input value={editForm.documento} onChange={e=>setEditForm({...editForm, documento:e.target.value})} className="mt-1 w-full border rounded-xl px-3 py-2" /></label>
               <label className="text-sm">Papel<select value={editForm.papel} onChange={e=>setEditForm({...editForm, papel:e.target.value})} className="mt-1 w-full border rounded-xl px-3 py-2"><option value="ADMINISTRADOR">ADMINISTRADOR</option><option value="PROPRIETARIO">PROPRIETARIO</option><option value="MASTER">MASTER</option></select></label>
               <label className="text-sm flex items-center gap-2 mt-6"><input type="checkbox" checked={editForm.ativo} onChange={e=>setEditForm({...editForm, ativo:e.target.checked})} /> Ativo</label>
+              <label className="text-sm md:col-span-2">Nova senha (deixe em branco para manter)<input type="password" value={editForm.novaSenha||""} onChange={e=>setEditForm({...editForm, novaSenha:e.target.value})} placeholder="mín 6 caracteres" className="mt-1 w-full border rounded-xl px-3 py-2" /></label>
             </div>
             <div className="flex gap-2">
               <button type="button" onClick={()=>setEdit(null)} className="flex-1 border rounded-2xl py-2">Cancelar</button>
