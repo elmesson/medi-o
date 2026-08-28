@@ -73,15 +73,21 @@ export default function InquilinosPage(){
         <div className="flex items-center justify-between"><h3 className="font-semibold text-sm">Grade completa</h3><Badge variant="default">{lista.length} inquilinos</Badge></div>
         <div className="overflow-x-auto mt-3">
           <table className="w-full text-sm">
-            <thead><tr className="text-xs text-zinc-500"><th className="text-left py-2">Nome</th><th>CPF</th><th>Medidor</th><th>Código</th><th>Endereço</th><th>Telefone</th><th>E-mail</th><th className="text-right">Ações</th></tr></thead>
+            <thead><tr className="text-xs text-zinc-500"><th className="text-left py-2">Nome</th><th>CPF</th><th>Medidor</th><th>Código / QR único</th><th>Endereço</th><th>Telefone</th><th>E-mail</th><th className="text-right">Ações</th></tr></thead>
             <tbody>
               {lista.map(item=>(
                 <tr key={item.id} className="border-t">
                   <td className="py-2 font-medium">{item.nome}<div className="text-[10px] text-zinc-500">{item.ativo===false?"Inativo":"Ativo"}</div></td>
                   <td className="text-xs">{item.cpfCnpj?.replace("enc:","")|| "-"}</td>
                   <td className="text-xs text-center">{item.medidor||"-"}</td>
-                  <td className="text-xs font-mono text-center">{item.codigoMedidor||"-"}</td>
-                  <td className="text-xs max-w-[150px] truncate">{item.endereco||"-"}</td>
+                  <td className="text-xs font-mono text-center">
+                    <div className="flex flex-col items-center gap-1">
+                      <span>{item.codigoMedidor||"-"}</span>
+                      {item.codigoMedidor && <img src={`https://api.qrserver.com/v1/create-qr-code/?size=60x60&data=${encodeURIComponent(item.codigoMedidor)}`} alt="QR medidor" className="w-12 h-12 border rounded" />}
+                      <span className="text-[9px] text-zinc-500">escaneie na leitura</span>
+                    </div>
+                  </td>
+                  <td className="text-xs max-w-[120px] truncate">{item.endereco||"-"}</td>
                   <td className="text-xs">{item.telefone||"-"}</td>
                   <td className="text-xs">{item.email}</td>
                   <td className="text-right space-x-1">

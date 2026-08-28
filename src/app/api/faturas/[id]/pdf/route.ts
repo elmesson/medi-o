@@ -3,17 +3,28 @@ import { prisma } from "@/lib/prisma";
 import { requireAuth, assertUnidadeAcesso } from "@/lib/requireAuth";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+import QRCode from "qrcode";
 
 export async function GET(_req: NextRequest, { params }: { params: { id: string } }) {
   const auth = await requireAuth();
   // Permite demo sem auth para facilitar teste do PDF bonito — se não autenticado, usa mock
   let fatura: any = null;
   let unidade: any = null;
+  let inquilino: any = null;
+  let proprietario: any = null;
+  let leitura: any = null;
   if (auth) {
     fatura = await prisma.fatura.findUnique({ where: { id: params.id }, include: { unidade: true } });
     if (!fatura) return NextResponse.json({ error: "Fatura não encontrada" }, { status: 404 });
     assertUnidadeAcesso(auth.unidades, fatura.unidadeId);
     unidade = fatura.unidade;
+    // Inquilino da unidade
+    const vinc = await prisma.unidadeInquilino.findFirst({ where: { unidadeId: fatura.unidadeId }, include: { inquilino: true } });
+    inquilino = vinc?.inquilino || null;
+    // Proprietário/Administrador da unidade
+    const admVinc = await prisma.administradorUnidade.findFirst({ where: { unidadeId: fatura.unidadeId }, include: { administrador: true } });
+    proprietario = admVinc?.administrador || null;
+    leitura = await prisma.leitura.findFirst({ where: { unidadeId: fatura.unidadeId, referencia: fatura.referencia }, orderBy: { referencia: "desc" } });
   } else {
     // mock bonito para demonstração quando não logado
     const now = new Date();
@@ -32,6 +43,9 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
       codigoBarras: "34191.09008 00000.000000 00000.000000 1 99990000054250",
     };
     unidade = { identificacao: "BL-A-101", bloco: "A", numero: "101" };
+    inquilino = { nome: "Maria Silva", email: "maria@ex.com", cpfCnpj: "enc:05512345655", telefone: "(11) 99999-0000", endereco: "Rua A, 101 - Bl A", medidor: "HID-001", codigoMedidor: "MED-ABCD-1234" };
+    proprietario = { nome: "João Proprietário", email: "joao.prop@elmesson.com.br", telefone: "(11) 97777-0000", documento: "05512345655" };
+    leitura = { leituraAnterior: 1200, leituraAtual: 1450, consumo: 250, dataLeitura: new Date().toISOString() };
   }
 
   const valorTotal = Number(fatura.valorTotal);
@@ -167,6 +181,62 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
   doc.text(`Critério: ${fatura.criterioRateio || "Medição individual"}   •   Rateio: ${fatura.rateioValor ? Number(fatura.rateioValor).toLocaleString("pt-BR", { style: "currency", currency: "BRL" }) : "-"}   •   Status: ${fatura.status}`, 16, finalY + 10);
   finalY += 22;
 
+  // ===== INQUILINO / MEDIDOR QRCODE / PROPRIETÁRIO / LEITURA =====
+  let qrMedidorDataUrl: string | null = null;
+  if (inquilino?.codigoMedidor) {
+    try { qrMedidorDataUrl = await QRCode.toDataURL(inquilino.codigoMedidor, { width: 200, margin: 1 }); } catch {}
+  }
+  doc.setFillColor(255, 255, 255);
+  doc.setDrawColor(226, 232, 240);
+  doc.roundedRect(14, finalY, W - 28, 32, 3, 3, "FD");
+  doc.setFontSize(7);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(15, 23, 42);
+  doc.text("INQUILINO  •  MEDIDOR  •  PROPRIETÁRIO  •  LEITURA", 16, finalY + 5);
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(6.5);
+  doc.setTextColor(15, 23, 42);
+  function maskDoc(docStr: string | null | undefined) {
+    if (!docStr || docStr === "-") return "-";
+    const clean = String(docStr).replace(/\D/g, "");
+    if (clean.length === 11) return `${clean.slice(0,3)}.***.***-${clean.slice(9)}`;
+    if (clean.length === 14) return `${clean.slice(0,2)}.${clean.slice(2,5)}.${clean.slice(5,8)}/${clean.slice(8,12)}-${clean.slice(12)}`;
+    return docStr;
+  }
+  function cleanDoc(docStr: string | null | undefined) {
+    if (!docStr) return "";
+    return String(docStr).replace("enc:","").replace(/\D/g,"");
+  }
+  const inqNome = inquilino?.nome || "-";
+  const inqCpfRaw = inquilino?.cpfCnpj ? String(inquilino.cpfCnpj).replace("enc:","") : "";
+  const inqCpf = inqCpfRaw ? (cleanDoc(inqCpfRaw).length===14 ? maskDoc(inqCpfRaw) : maskDoc(inqCpfRaw)) : "-";
+  const inqCpfLabel = cleanDoc(inqCpfRaw).length===14 ? "CNPJ" : "CPF";
+  const inqEnd = inquilino?.endereco || unidade.identificacao;
+  const medidor = inquilino?.medidor || "-";
+  const codigo = inquilino?.codigoMedidor || "-";
+  const propNome = proprietario?.nome || "-";
+  const propTel = proprietario?.telefone || "-";
+  const propDocRaw = proprietario?.documento ? String(proprietario.documento) : "";
+  const propDoc = propDocRaw ? (cleanDoc(propDocRaw).length===14 ? maskDoc(propDocRaw) : maskDoc(propDocRaw)) : "";
+  const propDocLabel = propDocRaw ? (cleanDoc(propDocRaw).length===14 ? "CNPJ" : "CPF") : "";
+  const dataLeitura = leitura?.dataLeitura ? new Date(leitura.dataLeitura).toLocaleDateString("pt-BR") : new Date(fatura.dataEmissao).toLocaleDateString("pt-BR");
+  const consumo = leitura ? `${leitura.leituraAnterior || 0} → ${leitura.leituraAtual || 0} • Consumo ${leitura.consumo || 0} ${fatura.tipo==="ENERGIA"?"kWh":"m³"}` : `Consumo ref ${ref}`;
+  doc.text(`Inquilino: ${inqNome}  •  ${inqCpfLabel}: ${inqCpf}`, 16, finalY + 10);
+  doc.text(`Endereço: ${inqEnd}  •  Medidor: ${medidor}  •  Código: ${codigo}`, 16, finalY + 14);
+  doc.text(`Proprietário: ${propNome} ${propDoc?`• ${propDocLabel}: ${propDoc}`:""} ${propTel!=="-"?"• "+propTel:""}`, 16, finalY + 18);
+  doc.text(`Leitura: ${dataLeitura}  •  ${consumo}  •  Validação por QR exclusivo do medidor`, 16, finalY + 22);
+  doc.setFontSize(5.5);
+  doc.setTextColor(100, 116, 139);
+  doc.text("QR do medidor: escaneie na leitura para validar e evitar erros.", 16, finalY + 26);
+  if (qrMedidorDataUrl) {
+    try { doc.addImage(qrMedidorDataUrl, "PNG", W - 14 - 22, finalY + 6, 22, 22); doc.setFontSize(5); doc.setTextColor(100,116,139); doc.text(codigo, W - 14 - 11, finalY + 30, { align: "center" }); } catch {}
+  } else {
+    doc.setFillColor(248,250,252);
+    doc.roundedRect(W - 14 - 22, finalY + 6, 22, 22, 2,2, "FD");
+    doc.setFontSize(6); doc.text("QR", W - 14 - 11, finalY + 17, { align: "center" });
+  }
+  finalY += 38;
+
   // ===== PIX =====
   doc.setFillColor(248, 250, 252);
   doc.setDrawColor(226, 232, 240);
@@ -180,14 +250,19 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
   doc.setTextColor(100, 116, 139);
   doc.text("Escaneie o QR Code no app do banco ou use o PIX Copia e Cola abaixo.", 16, finalY + 11);
 
-  // QR placeholder
-  doc.setFillColor(255, 255, 255);
-  doc.setDrawColor(226, 232, 240);
-  doc.roundedRect(16, finalY + 14, 22, 22, 2, 2, "FD");
-  doc.setFontSize(6);
-  doc.setTextColor(100, 116, 139);
-  doc.text("QR CODE", 20, finalY + 23);
-  doc.text("PIX", 24, finalY + 26);
+  let qrPixDataUrl: string | null = null;
+  if (fatura.pixQrCode) { try { qrPixDataUrl = await QRCode.toDataURL(fatura.pixQrCode, { width: 200, margin: 1 }); } catch {} }
+  if (qrPixDataUrl) {
+    try { doc.addImage(qrPixDataUrl, "PNG", 16, finalY + 14, 22, 22); } catch {}
+  } else {
+    doc.setFillColor(255, 255, 255);
+    doc.setDrawColor(226, 232, 240);
+    doc.roundedRect(16, finalY + 14, 22, 22, 2, 2, "FD");
+    doc.setFontSize(6);
+    doc.setTextColor(100, 116, 139);
+    doc.text("QR CODE", 20, finalY + 23);
+    doc.text("PIX", 24, finalY + 26);
+  }
   // Copia e cola
   doc.setFontSize(6);
   doc.setFont("helvetica", "bold");

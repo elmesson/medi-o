@@ -6,15 +6,36 @@ export default function LeiturasGestaoPage(){
   const [lista,setLista]=useState<any[]>([]);
   const [edit,setEdit]=useState<any>(null);
   const [editForm,setEditForm]=useState<any>({});
+  const [codigoScan,setCodigoScan]=useState("");
+  const [scanMsg,setScanMsg]=useState<string|null>(null);
+  const [scanOk,setScanOk]=useState<boolean|null>(null);
+  const [inquilinos,setInquilinos]=useState<any[]>([]);
 
   async function load(){
     const r = await fetch("/api/admin/leituras").then(res=>res.json()).catch(()=>[]);
     if(Array.isArray(r)) setLista(r);
+    const inq = await fetch("/api/gestao/inquilinos").then(res=>res.json()).catch(()=>[]);
+    if(Array.isArray(inq)) setInquilinos(inq);
   }
   useEffect(()=>{ load(); },[]);
 
+  function validarQR(){
+    const found = inquilinos.find((i:any)=> i.codigoMedidor===codigoScan.trim());
+    if(!found){ setScanOk(false); setScanMsg("Código não encontrado — verifique o QR do medidor."); return; }
+    const vinc = (found.unidades||[])[0];
+    if(vinc && vinc.unidadeId !== form.unidadeId && form.unidadeId){
+      setScanOk(false); setScanMsg(`QR válido para ${found.nome} mas unidade diverge (${vinc.unidadeId} ≠ ${form.unidadeId}) — erro evitado!`);
+      return;
+    }
+    // auto-preenche unidade se vazio
+    if(!form.unidadeId && vinc) setForm({...form, unidadeId: vinc.unidadeId});
+    setScanOk(true); setScanMsg(`✓ Validado: ${found.nome} • ${found.codigoMedidor} • Medidor ${found.medidor||"-"} — leitura liberada.`);
+  }
+
   async function salvar(e: React.FormEvent){
     e.preventDefault();
+    if(codigoScan && scanOk===false){ alert("Valide o QR do medidor antes de salvar para evitar erro."); return; }
+    if(codigoScan && !scanOk){ alert("Clique em Validar QR antes de salvar."); return; }
     const res = await fetch("/api/admin/leituras", { method:"POST", headers:{ "Content-Type":"application/json"}, body: JSON.stringify({ leituras: [{ unidadeId: form.unidadeId || "bl-a-101", tipo: form.tipo, referencia: form.referencia, leituraAnterior: Number(form.leituraAnterior), leituraAtual: Number(form.leituraAtual), tarifa: Number(form.tarifa), bandeira: form.bandeira }] }) });
     if(res.ok) load();
     else {
@@ -41,8 +62,18 @@ export default function LeiturasGestaoPage(){
   return (
     <div className="space-y-4">
       <h1 className="text-xl font-bold">Gestão — Leitura</h1>
+      <Card className="space-y-2 border-emerald-200 bg-emerald-50">
+        <h3 className="font-semibold text-sm">1) Escaneie o QRCODE do medidor para validar</h3>
+        <p className="text-xs text-zinc-600">Código único e exclusivo por medidor (gerado em Gestão → Inquilinos). Scanner evita erros de unidade.</p>
+        <div className="flex gap-2">
+          <input value={codigoScan} onChange={e=>setCodigoScan(e.target.value)} placeholder="Escaneie ou digite MED-XXXX-XXXX" className="flex-1 border rounded-xl px-3 py-2 font-mono text-sm" />
+          <button type="button" onClick={validarQR} className="bg-zinc-900 text-white rounded-xl px-4 text-sm font-semibold">Validar QR</button>
+        </div>
+        {scanMsg && <div className={`text-xs rounded-xl px-3 py-2 ${scanOk?"bg-emerald-100 text-emerald-800":"bg-rose-100 text-rose-700"}`}>{scanMsg}</div>}
+      </Card>
       <Card className="space-y-3">
-        <h3 className="font-semibold text-sm">Realizar leitura do inquilino</h3>
+        <h3 className="font-semibold text-sm">2) Realizar leitura do inquilino</h3>
+        <p className="text-xs text-zinc-500">{scanOk ? "QR validado — pode informar a medição." : "Valide o QR acima para liberar o salvamento."}</p>
         <form onSubmit={salvar} className="grid md:grid-cols-3 gap-3">
           <label className="text-sm">Unidade ID<input value={form.unidadeId} onChange={e=>setForm({...form, unidadeId:e.target.value})} placeholder="bl-a-101" className="mt-1 w-full border rounded-xl px-3 py-2" /></label>
           <label className="text-sm">Tipo<select value={form.tipo} onChange={e=>setForm({...form, tipo:e.target.value})} className="mt-1 w-full border rounded-xl px-3 py-2"><option>ENERGIA</option><option>AGUA</option><option>GAS</option></select></label>
@@ -51,7 +82,7 @@ export default function LeiturasGestaoPage(){
           <label className="text-sm">Anterior<input type="number" value={form.leituraAnterior} onChange={e=>setForm({...form, leituraAnterior:e.target.value})} className="mt-1 w-full border rounded-xl px-3 py-2" /></label>
           <label className="text-sm">Atual<input type="number" value={form.leituraAtual} onChange={e=>setForm({...form, leituraAtual:e.target.value})} className="mt-1 w-full border rounded-xl px-3 py-2" /></label>
           <label className="text-sm md:col-span-3">Tarifa R$<input type="number" step="0.0001" value={form.tarifa} onChange={e=>setForm({...form, tarifa:e.target.value})} className="mt-1 w-full border rounded-xl px-3 py-2" /></label>
-          <button className="md:col-span-3 bg-emerald-700 text-white rounded-2xl py-2.5 font-semibold">Salvar leitura</button>
+          <button disabled={scanOk===false || (!scanOk && !!codigoScan)} className={`md:col-span-3 rounded-2xl py-2.5 font-semibold ${scanOk ? "bg-emerald-700 text-white" : "bg-zinc-200 text-zinc-500"}`}>{scanOk ? "Salvar leitura validada" : "Valide o QR para salvar"}</button>
         </form>
       </Card>
 
