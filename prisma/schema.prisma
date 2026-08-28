@@ -47,12 +47,14 @@ model Unidade {
   numero           String
   identificacao    String   @unique // ex: BL-A-101
   tipo             String   @default("APARTAMENTO")
+  fracaoIdeal      Decimal? @default(1.0) // para rateio RATIO
   createdAt        DateTime @default(now())
 
   inquilinos       UnidadeInquilino[]
   administradores  AdministradorUnidade[]
   leituras         Leitura[]
   faturas          Fatura[]
+  rateios          CondominioRateio[]
 }
 
 model UnidadeInquilino {
@@ -244,6 +246,37 @@ model AdministradorUnidade {
   administrador   Administrador @relation(fields: [administradorId], references: [id], onDelete: Cascade)
   unidade         Unidade       @relation(fields: [unidadeId], references: [id], onDelete: Cascade)
   @@unique([administradorId, unidadeId])
+}
+
+// ============ CONDOMÍNIO - CUSTOS E RATEIO ============
+model CondominioDespesa {
+  id              String   @id @default(cuid())
+  referencia      String   // YYYY-MM
+  categoria       String   // AGUA | GAS | ENERGIA | OUTROS
+  especificacao   String?  // ex: Internet, Manutenção, Segurança eletrônica (quando OUTROS)
+  empresa         String?  // prestador / empresa
+  valor           Decimal
+  data            DateTime
+  vencimento      DateTime
+  codFatura       String?  // código da fatura/empresa
+  descricao       String?
+  tipoCobranca    String   @default("COMPARTILHADA") // RATIO | COMPARTILHADA | PORCENTAGEM
+  porcentagem     Decimal? // ex: 12.5 quando PORCENTAGEM
+  createdAt       DateTime @default(now())
+  rateios         CondominioRateio[]
+  @@index([referencia])
+}
+
+model CondominioRateio {
+  id           String   @id @default(cuid())
+  despesaId    String
+  unidadeId    String
+  valorRateio  Decimal
+  criterio     String?
+  createdAt    DateTime @default(now())
+  despesa      CondominioDespesa @relation(fields: [despesaId], references: [id], onDelete: Cascade)
+  unidade      Unidade           @relation(fields: [unidadeId], references: [id], onDelete: Cascade)
+  @@unique([despesaId, unidadeId])
 }
 
 // ============ SESSAO ============
