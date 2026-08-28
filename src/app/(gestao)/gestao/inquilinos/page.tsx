@@ -6,7 +6,7 @@ function genCodigo(){ return `MED-${Math.random().toString(36).slice(2,6).toUppe
 
 export default function InquilinosPage(){
   const [lista,setLista]=useState<any[]>([]);
-  const [form,setForm]=useState({ nome:"", email:"", cpf:"", telefone:"", endereco:"", medidorEnergia:"", codigoMedidorEnergia: genCodigo(), medidorAgua:"", codigoMedidorAgua: genCodigo(), medidorGas:"", codigoMedidorGas: genCodigo(), unidadeId:"", senha:"", leituraInicial:"" });
+  const [form,setForm]=useState({ nome:"", email:"", cpf:"", telefone:"", endereco:"", medidorEnergia:"", codigoMedidorEnergia: genCodigo(), leituraInicialEnergia:"", medidorAgua:"", codigoMedidorAgua: genCodigo(), leituraInicialAgua:"", medidorGas:"", codigoMedidorGas: genCodigo(), leituraInicialGas:"", unidadeId:"", senha:"" });
   const [edit,setEdit]=useState<any>(null);
   const [editForm,setEditForm]=useState<any>({});
 
@@ -19,21 +19,25 @@ export default function InquilinosPage(){
 
   async function criar(e: React.FormEvent){
     e.preventDefault();
-    const res = await fetch("/api/gestao/inquilinos", { method:"POST", headers:{ "Content-Type":"application/json"}, body: JSON.stringify({ ...form, leituraInicial: form.leituraInicial? Number(form.leituraInicial): undefined }) });
-    if(res.ok){ setForm({ nome:"", email:"", cpf:"", telefone:"", endereco:"", medidorEnergia:"", codigoMedidorEnergia: genCodigo(), medidorAgua:"", codigoMedidorAgua: genCodigo(), medidorGas:"", codigoMedidorGas: genCodigo(), unidadeId:"", senha:"", leituraInicial:"" }); load(); }
+    const payload:any = { ...form };
+    if(form.leituraInicialEnergia) payload.leituraInicialEnergia = Number(form.leituraInicialEnergia);
+    if(form.leituraInicialAgua) payload.leituraInicialAgua = Number(form.leituraInicialAgua);
+    if(form.leituraInicialGas) payload.leituraInicialGas = Number(form.leituraInicialGas);
+    const res = await fetch("/api/gestao/inquilinos", { method:"POST", headers:{ "Content-Type":"application/json"}, body: JSON.stringify(payload) });
+    if(res.ok){ setForm({ nome:"", email:"", cpf:"", telefone:"", endereco:"", medidorEnergia:"", codigoMedidorEnergia: genCodigo(), medidorAgua:"", codigoMedidorAgua: genCodigo(), medidorGas:"", codigoMedidorGas: genCodigo(), unidadeId:"", senha:"", leituraInicialEnergia:"", leituraInicialAgua:"", leituraInicialGas:"" }); load(); }
     else {
       setLista([{ id: Math.random().toString(36).slice(2), ...form, ativo:true, cpfCnpj: form.cpf, createdAt: new Date().toISOString() }, ...lista]);
-      setForm({ nome:"", email:"", cpf:"", telefone:"", endereco:"", medidorEnergia:"", codigoMedidorEnergia: genCodigo(), medidorAgua:"", codigoMedidorAgua: genCodigo(), medidorGas:"", codigoMedidorGas: genCodigo(), unidadeId:"", senha:"", leituraInicial:"" });
+      setForm({ nome:"", email:"", cpf:"", telefone:"", endereco:"", medidorEnergia:"", codigoMedidorEnergia: genCodigo(), medidorAgua:"", codigoMedidorAgua: genCodigo(), medidorGas:"", codigoMedidorGas: genCodigo(), unidadeId:"", senha:"", leituraInicialEnergia:"", leituraInicialAgua:"", leituraInicialGas:"" });
     }
   }
   function iniciarEdicao(item:any){
     setEdit(item);
     setEditForm({
       nome: item.nome, email: item.email, cpf: item.cpfCnpj?.replace("enc:","")||"", telefone: item.telefone||"", endereco: item.endereco||"",
-      medidorEnergia: item.medidorEnergia|| item.medidor||"", codigoMedidorEnergia: item.codigoMedidorEnergia|| item.codigoMedidor||"",
-      medidorAgua: item.medidorAgua||"", codigoMedidorAgua: item.codigoMedidorAgua||"",
-      medidorGas: item.medidorGas||"", codigoMedidorGas: item.codigoMedidorGas||"",
-      ativo: item.ativo, novaSenha:"", leituraInicial:"", unidadeId: item.unidades?.[0]?.unidadeId || ""
+      medidorEnergia: item.medidorEnergia|| item.medidor||"", codigoMedidorEnergia: item.codigoMedidorEnergia|| item.codigoMedidor||"", leituraInicialEnergia:"",
+      medidorAgua: item.medidorAgua||"", codigoMedidorAgua: item.codigoMedidorAgua||"", leituraInicialAgua:"",
+      medidorGas: item.medidorGas||"", codigoMedidorGas: item.codigoMedidorGas||"", leituraInicialGas:"",
+      ativo: item.ativo, novaSenha:"", unidadeId: item.unidades?.[0]?.unidadeId || ""
     });
   }
   async function salvarEdicao(e: React.FormEvent){
@@ -65,7 +69,7 @@ export default function InquilinosPage(){
 
           <div className="md:col-span-3 border rounded-2xl p-3 space-y-2 bg-zinc-50">
             <div className="text-xs font-bold">Medidor Energia Elétrica</div>
-            <div className="grid md:grid-cols-2 gap-2">
+            <div className="grid md:grid-cols-3 gap-2">
               <label className="text-sm">Nº medidor<input value={form.medidorEnergia} onChange={e=>setForm({...form, medidorEnergia:e.target.value})} placeholder="ex: HID-ENERGIA-001" className="mt-1 w-full border rounded-xl px-3 py-2" /></label>
               <label className="text-sm">Código único
                 <div className="flex gap-1 mt-1">
@@ -73,12 +77,13 @@ export default function InquilinosPage(){
                   <button type="button" onClick={()=>setForm({...form, codigoMedidorEnergia: genCodigo()})} className="bg-zinc-900 text-white rounded-xl px-3 text-xs">Gerar</button>
                 </div>
               </label>
+              <label className="text-sm">Medição inicial (para faturar)<input type="number" value={form.leituraInicialEnergia} onChange={e=>setForm({...form, leituraInicialEnergia:e.target.value})} placeholder="ex: 1250" className="mt-1 w-full border rounded-xl px-3 py-2" /></label>
             </div>
           </div>
 
           <div className="md:col-span-3 border rounded-2xl p-3 space-y-2 bg-blue-50">
             <div className="text-xs font-bold">Medidor Água</div>
-            <div className="grid md:grid-cols-2 gap-2">
+            <div className="grid md:grid-cols-3 gap-2">
               <label className="text-sm">Nº medidor<input value={form.medidorAgua} onChange={e=>setForm({...form, medidorAgua:e.target.value})} placeholder="ex: HID-AGUA-001" className="mt-1 w-full border rounded-xl px-3 py-2" /></label>
               <label className="text-sm">Código único
                 <div className="flex gap-1 mt-1">
@@ -86,12 +91,13 @@ export default function InquilinosPage(){
                   <button type="button" onClick={()=>setForm({...form, codigoMedidorAgua: genCodigo()})} className="bg-blue-600 text-white rounded-xl px-3 text-xs">Gerar</button>
                 </div>
               </label>
+              <label className="text-sm">Medição inicial (para faturar)<input type="number" value={form.leituraInicialAgua} onChange={e=>setForm({...form, leituraInicialAgua:e.target.value})} placeholder="ex: 80" className="mt-1 w-full border rounded-xl px-3 py-2" /></label>
             </div>
           </div>
 
           <div className="md:col-span-3 border rounded-2xl p-3 space-y-2 bg-orange-50">
             <div className="text-xs font-bold">Medidor Gás</div>
-            <div className="grid md:grid-cols-2 gap-2">
+            <div className="grid md:grid-cols-3 gap-2">
               <label className="text-sm">Nº medidor<input value={form.medidorGas} onChange={e=>setForm({...form, medidorGas:e.target.value})} placeholder="ex: HID-GAS-001" className="mt-1 w-full border rounded-xl px-3 py-2" /></label>
               <label className="text-sm">Código único
                 <div className="flex gap-1 mt-1">
@@ -99,11 +105,11 @@ export default function InquilinosPage(){
                   <button type="button" onClick={()=>setForm({...form, codigoMedidorGas: genCodigo()})} className="bg-orange-600 text-white rounded-xl px-3 text-xs">Gerar</button>
                 </div>
               </label>
+              <label className="text-sm">Medição inicial (para faturar)<input type="number" value={form.leituraInicialGas} onChange={e=>setForm({...form, leituraInicialGas:e.target.value})} placeholder="ex: 40" className="mt-1 w-full border rounded-xl px-3 py-2" /></label>
             </div>
           </div>
 
-          <label className="text-sm">Senha inicial<input type="password" value={form.senha} onChange={e=>setForm({...form, senha:e.target.value})} placeholder="Inquilino123!" className="mt-1 w-full border rounded-xl px-3 py-2" /></label>
-          <label className="text-sm">Medição inicial (para faturar)<input type="number" value={form.leituraInicial} onChange={e=>setForm({...form, leituraInicial:e.target.value})} placeholder="ex: 1250" className="mt-1 w-full border rounded-xl px-3 py-2" /></label>
+          <label className="text-sm md:col-span-2">Senha inicial<input type="password" value={form.senha} onChange={e=>setForm({...form, senha:e.target.value})} placeholder="Inquilino123!" className="mt-1 w-full border rounded-xl px-3 py-2" /></label>
           <div className="md:col-span-1 flex items-end"><button className="w-full bg-emerald-700 text-white rounded-2xl py-2.5 font-semibold">Cadastrar inquilino</button></div>
         </form>
       </Card>
@@ -169,7 +175,9 @@ export default function InquilinosPage(){
               <label className="text-sm flex items-center gap-2 mt-6"><input type="checkbox" checked={editForm.ativo} onChange={e=>setEditForm({...editForm, ativo:e.target.checked})} /> Ativo</label>
               <label className="text-sm">Unidade ID<input value={editForm.unidadeId} onChange={e=>setEditForm({...editForm, unidadeId:e.target.value})} className="mt-1 w-full border rounded-xl px-3 py-2" /></label>
               <label className="text-sm">Nova senha<input type="password" value={editForm.novaSenha} onChange={e=>setEditForm({...editForm, novaSenha:e.target.value})} placeholder="deixe em branco" className="mt-1 w-full border rounded-xl px-3 py-2" /></label>
-              <label className="text-sm">Medição inicial<input type="number" value={editForm.leituraInicial} onChange={e=>setEditForm({...editForm, leituraInicial:e.target.value})} className="mt-1 w-full border rounded-xl px-3 py-2" /></label>
+              <label className="text-sm">Medição inicial Energia<input type="number" value={editForm.leituraInicialEnergia} onChange={e=>setEditForm({...editForm, leituraInicialEnergia:e.target.value})} className="mt-1 w-full border rounded-xl px-3 py-2" /></label>
+              <label className="text-sm">Medição inicial Água<input type="number" value={editForm.leituraInicialAgua} onChange={e=>setEditForm({...editForm, leituraInicialAgua:e.target.value})} className="mt-1 w-full border rounded-xl px-3 py-2" /></label>
+              <label className="text-sm">Medição inicial Gás<input type="number" value={editForm.leituraInicialGas} onChange={e=>setEditForm({...editForm, leituraInicialGas:e.target.value})} className="mt-1 w-full border rounded-xl px-3 py-2" /></label>
             </div>
             <div className="flex gap-2">
               <button type="button" onClick={()=>setEdit(null)} className="flex-1 border rounded-2xl py-2">Cancelar</button>
