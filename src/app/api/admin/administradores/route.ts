@@ -41,8 +41,18 @@ export async function POST(req: NextRequest) {
 export async function PUT(req: NextRequest) {
   const master = await requireMaster();
   if (!master) return NextResponse.json({ error: "Acesso master requerido" }, { status: 403 });
-  const { id, nome, telefone, ativo, unidadeIds } = await req.json();
-  const updated = await prisma.administrador.update({ where: { id }, data: { nome, telefone, ativo } });
+  const { id, nome, email, telefone, documento, papel, ativo, unidadeIds } = await req.json();
+  const data:any = {};
+  if (nome !== undefined) data.nome = nome;
+  if (email !== undefined) data.email = email;
+  if (telefone !== undefined) data.telefone = telefone;
+  if (documento !== undefined) data.documento = documento;
+  if (papel !== undefined) {
+    if (!["ADMINISTRADOR","PROPRIETARIO","MASTER"].includes(papel)) return NextResponse.json({ error: "papel inválido" }, { status: 400 });
+    data.papel = papel;
+  }
+  if (ativo !== undefined) data.ativo = ativo;
+  const updated = await prisma.administrador.update({ where: { id }, data });
   if (unidadeIds) {
     await prisma.administradorUnidade.deleteMany({ where: { administradorId: id } });
     for (const uid of unidadeIds) await prisma.administradorUnidade.create({ data: { administradorId: id, unidadeId: uid } });
