@@ -39,6 +39,7 @@ model Unidade {
   createdAt        DateTime @default(now())
 
   inquilinos       UnidadeInquilino[]
+  administradores  AdministradorUnidade[]
   leituras         Leitura[]
   faturas          Fatura[]
 }
@@ -203,6 +204,32 @@ model Notificacao {
   inquilino   Inquilino       @relation(fields: [inquilinoId], references: [id], onDelete: Cascade)
 }
 
+// ============ ADMIN MASTER / ADMINISTRADORES / PROPRIETARIOS ============
+model Administrador {
+  id         String   @id @default(cuid())
+  nome       String
+  email      String   @unique
+  senhaHash  String
+  papel      String   @default("ADMINISTRADOR") // MASTER | ADMINISTRADOR | PROPRIETARIO
+  telefone   String?
+  documento  String?  @unique // CPF/CNPJ
+  ativo      Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  unidades   AdministradorUnidade[]
+  sessoes    SessaoAdmin[]
+}
+
+model AdministradorUnidade {
+  id              String        @id @default(cuid())
+  administradorId String
+  unidadeId       String
+  createdAt       DateTime      @default(now())
+  administrador   Administrador @relation(fields: [administradorId], references: [id], onDelete: Cascade)
+  unidade         Unidade       @relation(fields: [unidadeId], references: [id], onDelete: Cascade)
+  @@unique([administradorId, unidadeId])
+}
+
 // ============ SESSAO ============
 model Sessao {
   id           String   @id @default(cuid())
@@ -214,4 +241,14 @@ model Sessao {
   revogada     Boolean  @default(false)
   createdAt    DateTime @default(now())
   inquilino    Inquilino @relation(fields: [inquilinoId], references: [id], onDelete: Cascade)
+}
+
+model SessaoAdmin {
+  id              String   @id @default(cuid())
+  administradorId String
+  refreshToken    String   @unique
+  expiraEm        DateTime
+  revogada        Boolean  @default(false)
+  createdAt       DateTime @default(now())
+  administrador   Administrador @relation(fields: [administradorId], references: [id], onDelete: Cascade)
 }

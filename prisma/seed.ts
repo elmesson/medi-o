@@ -100,6 +100,24 @@ async function main(){
     ]
   });
 
-  console.log("Seed ok:", inquilino.email, "unidade", unidade.identificacao);
+  // Master + admin/proprietario demo
+  const masterHash = await bcrypt.hash("master123",10);
+  await prisma.administrador.upsert({
+    where: { email: "master@elmesson.com.br" },
+    update: { senhaHash: masterHash, papel: "MASTER" },
+    create: { nome: "Master Elmesson", email: "master@elmesson.com.br", senhaHash: masterHash, papel: "MASTER", telefone: "(11) 99999-0001" }
+  });
+  await prisma.administrador.upsert({
+    where: { email: "admin.centro@elmesson.com.br" },
+    update: {},
+    create: { nome: "Admin Imóveis Centro", email: "admin.centro@elmesson.com.br", senhaHash: await bcrypt.hash("admin123",10), papel: "ADMINISTRADOR", telefone: "(11) 98888-0000" }
+  });
+  await prisma.administrador.upsert({
+    where: { email: "joao.prop@elmesson.com.br" },
+    update: {},
+    create: { nome: "João Proprietário", email: "joao.prop@elmesson.com.br", senhaHash: await bcrypt.hash("prop123",10), papel: "PROPRIETARIO", telefone: "(11) 97777-0000" }
+  });
+
+  console.log("Seed ok:", inquilino.email, "unidade", unidade.identificacao, "master master@elmesson.com.br");
 }
 main().catch(e=>{ console.error(e); process.exit(1); }).finally(()=> prisma.$disconnect());
