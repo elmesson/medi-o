@@ -19,6 +19,9 @@ model Inquilino {
   mfaEnabled       Boolean  @default(false)
   mfaSecret        String?  // TOTP secret criptografado
   ativo            Boolean  @default(true)
+  endereco         String?
+  medidor          String?  // nº do medidor físico
+  codigoMedidor    String?  @unique // gerador MED-XXXX
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 
