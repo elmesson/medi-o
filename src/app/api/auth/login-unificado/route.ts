@@ -30,6 +30,9 @@ export async function POST(req: NextRequest) {
   // 2) Tenta Administrador (MASTER/ADMINISTRADOR/PROPRIETARIO)
   const admin = await prisma.administrador.findUnique({ where: { email } });
   if (admin && admin.ativo) {
+    if (admin.dataExpiracao && new Date(admin.dataExpiracao) < new Date() && admin.papel !== "MASTER") {
+      return NextResponse.json({ error: `Contrato ${admin.plano || ""} expirado em ${new Date(admin.dataExpiracao).toLocaleDateString("pt-BR")}. Contate o Master.` }, { status: 403 });
+    }
     const ok = await verifyPassword(senha, admin.senhaHash);
     if (ok) {
       const access = await new jose.SignJWT({ sub: admin.id, email, papel: admin.papel } as any).setProtectedHeader({ alg:"HS256"}).setIssuedAt().setExpirationTime("15m").sign(SECRET);

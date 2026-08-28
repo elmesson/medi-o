@@ -13,6 +13,9 @@ export async function POST(req: NextRequest) {
   const ok = await verifyPassword(senha, admin.senhaHash);
   if (!ok) return NextResponse.json({ error: "Credenciais inválidas" }, { status: 401 });
   if (admin.papel !== "MASTER" && admin.papel !== "ADMINISTRADOR") return NextResponse.json({ error: "Sem permissão admin" }, { status: 403 });
+  if (admin.dataExpiracao && new Date(admin.dataExpiracao) < new Date() && admin.papel !== "MASTER") {
+    return NextResponse.json({ error: `Contrato ${admin.plano || ""} expirado em ${new Date(admin.dataExpiracao).toLocaleDateString("pt-BR")}. Contate o Master.` }, { status: 403 });
+  }
 
   // token admin com claim papel
   const access = await new jose.SignJWT({ sub: admin.id, email: admin.email, papel: admin.papel } as any)

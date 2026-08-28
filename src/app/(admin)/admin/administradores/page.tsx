@@ -4,7 +4,7 @@ import { Card, Badge } from "@/components/ui";
 
 export default function AdministradoresPage(){
   const [lista,setLista]=useState<any[]>([]);
-  const [form,setForm]=useState({ nome:"", email:"", senha:"", papel:"ADMINISTRADOR", telefone:"", documento:"" });
+  const [form,setForm]=useState({ nome:"", email:"", senha:"", papel:"ADMINISTRADOR", telefone:"", documento:"", plano:"TRIAL", diasContrato:"7" });
   const [edit,setEdit]=useState<any>(null);
   const [editForm,setEditForm]=useState<any>({});
 
@@ -17,16 +17,17 @@ export default function AdministradoresPage(){
 
   async function criar(e: React.FormEvent){
     e.preventDefault();
-    const res = await fetch("/api/admin/administradores", { method:"POST", headers:{ "Content-Type":"application/json"}, body: JSON.stringify(form) });
-    if(res.ok){ setForm({ nome:"", email:"", senha:"", papel:"ADMINISTRADOR", telefone:"", documento:"" }); load(); }
+    const payload = { ...form, diasContrato: form.diasContrato? Number(form.diasContrato): undefined };
+    const res = await fetch("/api/admin/administradores", { method:"POST", headers:{ "Content-Type":"application/json"}, body: JSON.stringify(payload) });
+    if(res.ok){ setForm({ nome:"", email:"", senha:"", papel:"ADMINISTRADOR", telefone:"", documento:"", plano:"TRIAL", diasContrato:"7" }); load(); }
     else {
-      setLista([{ id: Math.random().toString(36).slice(2), ...form, ativo:true, createdAt: new Date().toISOString() }, ...lista]);
-      setForm({ nome:"", email:"", senha:"", papel:"ADMINISTRADOR", telefone:"", documento:"" });
+      setLista([{ id: Math.random().toString(36).slice(2), ...form, ativo:true, createdAt: new Date().toISOString(), dataExpiracao: new Date(Date.now()+7*86400000).toISOString() }, ...lista]);
+      setForm({ nome:"", email:"", senha:"", papel:"ADMINISTRADOR", telefone:"", documento:"", plano:"TRIAL", diasContrato:"7" });
     }
   }
   function iniciarEdicao(item:any){
     setEdit(item);
-    setEditForm({ nome: item.nome, email: item.email, telefone: item.telefone||"", documento: item.documento||"", papel: item.papel, ativo: item.ativo, novaSenha: "" });
+    setEditForm({ nome: item.nome, email: item.email, telefone: item.telefone||"", documento: item.documento||"", papel: item.papel, ativo: item.ativo, novaSenha: "", plano: item.plano||"TRIAL", diasContrato: String(item.diasContrato|| (item.plano==="TRIAL"?7:item.plano==="ANUAL"?365:item.plano==="SEMESTRAL"?180:30)) });
   }
   async function salvarEdicao(e: React.FormEvent){
     e.preventDefault();
@@ -60,6 +61,8 @@ export default function AdministradoresPage(){
           <label className="text-sm">E-mail<input value={form.email} onChange={e=>setForm({...form, email:e.target.value})} required className="mt-1 w-full border rounded-xl px-3 py-2" /></label>
           <label className="text-sm">Senha<input type="password" value={form.senha} onChange={e=>setForm({...form, senha:e.target.value})} placeholder="mín 8" className="mt-1 w-full border rounded-xl px-3 py-2" /></label>
           <label className="text-sm">Papel<select value={form.papel} onChange={e=>setForm({...form, papel:e.target.value})} className="mt-1 w-full border rounded-xl px-3 py-2"><option value="ADMINISTRADOR">ADMINISTRADOR DE IMÓVEL</option><option value="PROPRIETARIO">PROPRIETÁRIO</option></select></label>
+          <label className="text-sm">Plano<select value={form.plano} onChange={e=>setForm({...form, plano:e.target.value})} className="mt-1 w-full border rounded-xl px-3 py-2"><option value="TRIAL">TRIAL (7 dias)</option><option value="SEMESTRAL">SEMESTRAL (180 dias)</option><option value="ANUAL">ANUAL (365 dias)</option><option value="DIAS">DIAS (custom)</option></select></label>
+          {(form.plano==="DIAS" || form.plano==="TRIAL") && <label className="text-sm">Dias<input type="number" value={form.diasContrato} onChange={e=>setForm({...form, diasContrato:e.target.value})} className="mt-1 w-full border rounded-xl px-3 py-2" /></label>}
           <label className="text-sm">Telefone<input value={form.telefone} onChange={e=>setForm({...form, telefone:e.target.value})} className="mt-1 w-full border rounded-xl px-3 py-2" /></label>
           <label className="text-sm">CPF/CNPJ<input value={form.documento} onChange={e=>setForm({...form, documento:e.target.value})} className="mt-1 w-full border rounded-xl px-3 py-2" /></label>
           <button className="md:col-span-3 bg-zinc-900 text-white rounded-2xl py-2.5 font-semibold">Cadastrar</button>
@@ -70,16 +73,15 @@ export default function AdministradoresPage(){
         <div className="flex items-center justify-between"><h3 className="font-semibold text-sm">Grade completa — clique em Alterar</h3><Badge variant="default">{lista.length} registros</Badge></div>
         <div className="overflow-x-auto mt-3">
           <table className="w-full text-sm">
-            <thead><tr className="text-xs text-zinc-500"><th className="text-left py-2">Nome</th><th className="text-left">E-mail</th><th>Documento</th><th>Telefone</th><th>Papel</th><th>Criado</th><th>Ativo</th><th className="text-right">Ações</th></tr></thead>
+            <thead><tr className="text-xs text-zinc-500"><th className="text-left py-2">Nome</th><th className="text-left">E-mail</th><th>Papel</th><th>Plano</th><th>Expira</th><th>Ativo</th><th className="text-right">Ações</th></tr></thead>
             <tbody>
               {lista.map(item=>(
                 <tr key={item.id} className="border-t">
-                  <td className="py-2 font-medium">{item.nome}</td>
+                  <td className="py-2 font-medium">{item.nome}<div className="text-[10px] text-zinc-500">{item.telefone||""} {item.documento?`• ${item.documento}`:""}</div></td>
                   <td className="text-xs">{item.email}</td>
-                  <td className="text-xs text-center">{item.documento || "-"}</td>
-                  <td className="text-xs text-center">{item.telefone || "-"}</td>
                   <td className="text-center"><Badge variant={item.papel==="MASTER"?"brand":item.papel==="PROPRIETARIO"?"success":"default"}>{item.papel}</Badge></td>
-                  <td className="text-xs text-center">{new Date(item.createdAt).toLocaleDateString("pt-BR")}</td>
+                  <td className="text-xs text-center">{item.plano||"TRIAL"} {item.diasContrato?`(${item.diasContrato}d)`:""}</td>
+                  <td className="text-xs text-center">{item.dataExpiracao? new Date(item.dataExpiracao).toLocaleDateString("pt-BR") : "-"}</td>
                   <td className="text-center"><button onClick={()=>toggleAtivo(item)} className={`text-xs px-2 py-1 rounded-full ${item.ativo?"bg-emerald-100 text-emerald-700":"bg-zinc-100"}`}>{item.ativo?"Ativo":"Inativo"}</button></td>
                   <td className="text-right space-x-2">
                     <button onClick={()=>iniciarEdicao(item)} className="text-xs bg-zinc-900 text-white rounded-full px-3 py-1 hover:bg-zinc-800">Alterar</button>
@@ -104,6 +106,8 @@ export default function AdministradoresPage(){
               <label className="text-sm">CPF/CNPJ<input value={editForm.documento} onChange={e=>setEditForm({...editForm, documento:e.target.value})} className="mt-1 w-full border rounded-xl px-3 py-2" /></label>
               <label className="text-sm">Papel<select value={editForm.papel} onChange={e=>setEditForm({...editForm, papel:e.target.value})} className="mt-1 w-full border rounded-xl px-3 py-2"><option value="ADMINISTRADOR">ADMINISTRADOR</option><option value="PROPRIETARIO">PROPRIETARIO</option><option value="MASTER">MASTER</option></select></label>
               <label className="text-sm flex items-center gap-2 mt-6"><input type="checkbox" checked={editForm.ativo} onChange={e=>setEditForm({...editForm, ativo:e.target.checked})} /> Ativo</label>
+              <label className="text-sm">Plano<select value={editForm.plano} onChange={e=>setEditForm({...editForm, plano:e.target.value})} className="mt-1 w-full border rounded-xl px-3 py-2"><option value="TRIAL">TRIAL</option><option value="SEMESTRAL">SEMESTRAL</option><option value="ANUAL">ANUAL</option><option value="DIAS">DIAS</option></select></label>
+              <label className="text-sm">Dias<input type="number" value={editForm.diasContrato} onChange={e=>setEditForm({...editForm, diasContrato:e.target.value})} className="mt-1 w-full border rounded-xl px-3 py-2" /></label>
               <label className="text-sm md:col-span-2">Nova senha (deixe em branco para manter)<input type="password" value={editForm.novaSenha||""} onChange={e=>setEditForm({...editForm, novaSenha:e.target.value})} placeholder="mín 6 caracteres" className="mt-1 w-full border rounded-xl px-3 py-2" /></label>
             </div>
             <div className="flex gap-2">

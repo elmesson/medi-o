@@ -206,18 +206,23 @@ model Notificacao {
 
 // ============ ADMIN MASTER / ADMINISTRADORES / PROPRIETARIOS ============
 model Administrador {
-  id         String   @id @default(cuid())
-  nome       String
-  email      String   @unique
-  senhaHash  String
-  papel      String   @default("ADMINISTRADOR") // MASTER | ADMINISTRADOR | PROPRIETARIO
-  telefone   String?
-  documento  String?  @unique // CPF/CNPJ
-  ativo      Boolean  @default(true)
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
-  unidades   AdministradorUnidade[]
-  sessoes    SessaoAdmin[]
+  id              String    @id @default(cuid())
+  nome            String
+  email           String    @unique
+  senhaHash       String
+  papel           String    @default("ADMINISTRADOR") // MASTER | ADMINISTRADOR | PROPRIETARIO
+  telefone        String?
+  documento       String?   @unique // CPF/CNPJ
+  ativo           Boolean   @default(true)
+  // Comercial: controle de contrato por perfil
+  plano           String?   @default("TRIAL") // TRIAL | SEMESTRAL | ANUAL | DIAS
+  diasContrato    Int?      // usado quando plano=DIAS ou TRIAL custom
+  contratoInicio  DateTime?
+  dataExpiracao   DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  unidades        AdministradorUnidade[]
+  sessoes         SessaoAdmin[]
 }
 
 model AdministradorUnidade {
