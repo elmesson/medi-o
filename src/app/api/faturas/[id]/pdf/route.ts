@@ -43,7 +43,7 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
       codigoBarras: "34191.09008 00000.000000 00000.000000 1 99990000054250",
     };
     unidade = { identificacao: "BL-A-101", bloco: "A", numero: "101" };
-    inquilino = { nome: "Maria Silva", email: "maria@ex.com", cpfCnpj: "enc:05512345655", telefone: "(11) 99999-0000", endereco: "Rua A, 101 - Bl A", medidor: "HID-001", codigoMedidor: "MED-ABCD-1234" };
+    inquilino = { nome: "Maria Silva", email: "maria@ex.com", cpfCnpj: "enc:05512345655", telefone: "(11) 99999-0000", endereco: "Rua A, 101 - Bl A", medidor: "HID-E-001", codigoMedidor: "MED-ABCD-1234", medidorEnergia: "HID-E-001", codigoMedidorEnergia: "MED-ABCD-1234", medidorAgua: "HID-A-001", codigoMedidorAgua: "MED-EFGH-5678", medidorGas: "HID-G-001", codigoMedidorGas: "MED-IJKL-9012" };
     proprietario = { nome: "João Proprietário", email: "joao.prop@elmesson.com.br", telefone: "(11) 97777-0000", documento: "05512345655" };
     leitura = { leituraAnterior: 1200, leituraAtual: 1450, consumo: 250, dataLeitura: new Date().toISOString() };
   }
@@ -181,18 +181,21 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
   doc.text(`Critério: ${fatura.criterioRateio || "Medição individual"}   •   Rateio: ${fatura.rateioValor ? Number(fatura.rateioValor).toLocaleString("pt-BR", { style: "currency", currency: "BRL" }) : "-"}   •   Status: ${fatura.status}`, 16, finalY + 10);
   finalY += 22;
 
-  // ===== INQUILINO / MEDIDOR QRCODE / PROPRIETÁRIO / LEITURA =====
-  let qrMedidorDataUrl: string | null = null;
-  if (inquilino?.codigoMedidor) {
-    try { qrMedidorDataUrl = await QRCode.toDataURL(inquilino.codigoMedidor, { width: 200, margin: 1 }); } catch {}
-  }
+  // ===== INQUILINO / MEDIDORES (ENERGIA, ÁGUA, GÁS) QRCODE / PROPRIETÁRIO / LEITURA =====
+  const codigoEnergia = inquilino?.codigoMedidorEnergia || inquilino?.codigoMedidor || null;
+  const codigoAgua = inquilino?.codigoMedidorAgua || null;
+  const codigoGas = inquilino?.codigoMedidorGas || null;
+  let qrEnergia: string | null = null, qrAgua: string | null = null, qrGas: string | null = null;
+  if (codigoEnergia) { try { qrEnergia = await QRCode.toDataURL(codigoEnergia, { width: 180, margin: 1 }); } catch {} }
+  if (codigoAgua) { try { qrAgua = await QRCode.toDataURL(codigoAgua, { width: 180, margin: 1 }); } catch {} }
+  if (codigoGas) { try { qrGas = await QRCode.toDataURL(codigoGas, { width: 180, margin: 1 }); } catch {} }
   doc.setFillColor(255, 255, 255);
   doc.setDrawColor(226, 232, 240);
-  doc.roundedRect(14, finalY, W - 28, 32, 3, 3, "FD");
+  doc.roundedRect(14, finalY, W - 28, 44, 3, 3, "FD");
   doc.setFontSize(7);
   doc.setFont("helvetica", "bold");
   doc.setTextColor(15, 23, 42);
-  doc.text("INQUILINO  •  MEDIDOR  •  PROPRIETÁRIO  •  LEITURA", 16, finalY + 5);
+  doc.text("INQUILINO  •  MEDIDORES  •  PROPRIETÁRIO  •  LEITURA", 16, finalY + 5);
   doc.setFont("helvetica", "normal");
   doc.setFontSize(6.5);
   doc.setTextColor(15, 23, 42);
@@ -212,8 +215,9 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
   const inqCpf = inqCpfRaw ? (cleanDoc(inqCpfRaw).length===14 ? maskDoc(inqCpfRaw) : maskDoc(inqCpfRaw)) : "-";
   const inqCpfLabel = cleanDoc(inqCpfRaw).length===14 ? "CNPJ" : "CPF";
   const inqEnd = inquilino?.endereco || unidade.identificacao;
-  const medidor = inquilino?.medidor || "-";
-  const codigo = inquilino?.codigoMedidor || "-";
+  const medEnergia = inquilino?.medidorEnergia || inquilino?.medidor || "-";
+  const medAgua = inquilino?.medidorAgua || "-";
+  const medGas = inquilino?.medidorGas || "-";
   const propNome = proprietario?.nome || "-";
   const propTel = proprietario?.telefone || "-";
   const propDocRaw = proprietario?.documento ? String(proprietario.documento) : "";
@@ -222,20 +226,25 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
   const dataLeitura = leitura?.dataLeitura ? new Date(leitura.dataLeitura).toLocaleDateString("pt-BR") : new Date(fatura.dataEmissao).toLocaleDateString("pt-BR");
   const consumo = leitura ? `${leitura.leituraAnterior || 0} → ${leitura.leituraAtual || 0} • Consumo ${leitura.consumo || 0} ${fatura.tipo==="ENERGIA"?"kWh":"m³"}` : `Consumo ref ${ref}`;
   doc.text(`Inquilino: ${inqNome}  •  ${inqCpfLabel}: ${inqCpf}`, 16, finalY + 10);
-  doc.text(`Endereço: ${inqEnd}  •  Medidor: ${medidor}  •  Código: ${codigo}`, 16, finalY + 14);
-  doc.text(`Proprietário: ${propNome} ${propDoc?`• ${propDocLabel}: ${propDoc}`:""} ${propTel!=="-"?"• "+propTel:""}`, 16, finalY + 18);
-  doc.text(`Leitura: ${dataLeitura}  •  ${consumo}  •  Validação por QR exclusivo do medidor`, 16, finalY + 22);
-  doc.setFontSize(5.5);
+  doc.text(`Endereço: ${inqEnd}`, 16, finalY + 14);
+  doc.setFontSize(6);
+  doc.text(`Medidor Energia Elétrica: ${medEnergia} • Código: ${codigoEnergia||"-"}`, 16, finalY + 18);
+  doc.text(`Medidor Água: ${medAgua} • Código: ${codigoAgua||"-"}  •  Medidor Gás: ${medGas} • Código: ${codigoGas||"-"}`, 16, finalY + 22);
+  doc.text(`Proprietário: ${propNome} ${propDoc?`• ${propDocLabel}: ${propDoc}`:""} ${propTel!=="-"?"• "+propTel:""}`, 16, finalY + 26);
+  doc.text(`Leitura: ${dataLeitura}  •  ${consumo}  •  Validação por QR exclusivo`, 16, finalY + 30);
+  doc.setFontSize(5);
   doc.setTextColor(100, 116, 139);
-  doc.text("QR do medidor: escaneie na leitura para validar e evitar erros.", 16, finalY + 26);
-  if (qrMedidorDataUrl) {
-    try { doc.addImage(qrMedidorDataUrl, "PNG", W - 14 - 22, finalY + 6, 22, 22); doc.setFontSize(5); doc.setTextColor(100,116,139); doc.text(codigo, W - 14 - 11, finalY + 30, { align: "center" }); } catch {}
-  } else {
+  doc.text("QR Energia          QR Água             QR Gás", W - 14 - 48, finalY + 34);
+  // QRs
+  if (qrEnergia) { try { doc.addImage(qrEnergia, "PNG", W - 14 - 48, finalY + 8, 14, 14); } catch {} }
+  if (qrAgua) { try { doc.addImage(qrAgua, "PNG", W - 14 - 32, finalY + 8, 14, 14); } catch {} }
+  if (qrGas) { try { doc.addImage(qrGas, "PNG", W - 14 - 16, finalY + 8, 14, 14); } catch {} }
+  if (!qrEnergia && !qrAgua && !qrGas) {
     doc.setFillColor(248,250,252);
-    doc.roundedRect(W - 14 - 22, finalY + 6, 22, 22, 2,2, "FD");
-    doc.setFontSize(6); doc.text("QR", W - 14 - 11, finalY + 17, { align: "center" });
+    doc.roundedRect(W - 14 - 22, finalY + 8, 22, 14, 2,2, "FD");
+    doc.setFontSize(6); doc.text("QRs", W - 14 - 11, finalY + 16, { align: "center" });
   }
-  finalY += 38;
+  finalY += 50;
 
   // ===== PIX =====
   doc.setFillColor(248, 250, 252);

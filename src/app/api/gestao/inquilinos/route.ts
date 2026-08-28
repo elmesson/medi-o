@@ -31,16 +31,24 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   const auth = await requireGestao();
   if (!auth) return NextResponse.json({ error: "Acesso Gestão requerido" }, { status: 403 });
-  const { nome, email, cpf, telefone, endereco, medidor, codigoMedidor, unidadeId, senha, leituraInicial } = await req.json();
+  const { nome, email, cpf, telefone, endereco, medidor, codigoMedidor, medidorEnergia, codigoMedidorEnergia, medidorAgua, codigoMedidorAgua, medidorGas, codigoMedidorGas, unidadeId, senha, leituraInicial } = await req.json();
   if (!nome || !email || !cpf) return NextResponse.json({ error: "nome, email, cpf obrigatórios" }, { status: 400 });
   const cleanCpf = cpf.replace(/\D/g,"");
   const hash = hashCpfCnpj(cleanCpf);
-  const codigo = codigoMedidor || genCodigoMedidor();
+  // códigos únicos por tipo (usa legado como fallback para energia)
+  const codigoEnergia = codigoMedidorEnergia || codigoMedidor || (medidorEnergia || medidor ? genCodigoMedidor() : null);
+  const codigoAgua = codigoMedidorAgua || (medidorAgua ? genCodigoMedidor() : null);
+  const codigoGas = codigoMedidorGas || (medidorGas ? genCodigoMedidor() : null);
+  const medEnergia = medidorEnergia || medidor || null;
   const senhaHash = await hashPassword(senha || "Inquilino123!");
   try {
     const inquilino = await prisma.inquilino.create({
       data: {
-        nome, email, telefone, endereco: endereco || null, medidor: medidor || null, codigoMedidor: codigo,
+        nome, email, telefone, endereco: endereco || null,
+        medidor: medEnergia, codigoMedidor: codigoEnergia,
+        medidorEnergia: medEnergia, codigoMedidorEnergia: codigoEnergia,
+        medidorAgua: medidorAgua || null, codigoMedidorAgua: codigoAgua,
+        medidorGas: medidorGas || null, codigoMedidorGas: codigoGas,
         cpfCnpj: `enc:${cleanCpf}`, cpfCnpjHash: hash, senhaHash,
         unidades: unidadeId ? { create: { unidadeId } } : undefined
       }
@@ -67,14 +75,20 @@ export async function POST(req: NextRequest) {
 export async function PUT(req: NextRequest) {
   const auth = await requireGestao();
   if (!auth) return NextResponse.json({ error: "Acesso Gestão requerido" }, { status: 403 });
-  const { id, nome, email, cpf, telefone, endereco, medidor, codigoMedidor, ativo, novaSenha, unidadeId, leituraInicial } = await req.json();
+  const { id, nome, email, cpf, telefone, endereco, medidor, codigoMedidor, medidorEnergia, codigoMedidorEnergia, medidorAgua, codigoMedidorAgua, medidorGas, codigoMedidorGas, ativo, novaSenha, unidadeId, leituraInicial } = await req.json();
   const data:any = {};
   if (nome !== undefined) data.nome = nome;
   if (email !== undefined) data.email = email;
   if (telefone !== undefined) data.telefone = telefone;
   if (endereco !== undefined) data.endereco = endereco;
-  if (medidor !== undefined) data.medidor = medidor;
-  if (codigoMedidor !== undefined) data.codigoMedidor = codigoMedidor;
+  if (medidor !== undefined) { data.medidor = medidor; data.medidorEnergia = medidor; }
+  if (codigoMedidor !== undefined) { data.codigoMedidor = codigoMedidor; data.codigoMedidorEnergia = codigoMedidor; }
+  if (medidorEnergia !== undefined) { data.medidorEnergia = medidorEnergia; data.medidor = medidorEnergia; }
+  if (codigoMedidorEnergia !== undefined) { data.codigoMedidorEnergia = codigoMedidorEnergia; data.codigoMedidor = codigoMedidorEnergia; }
+  if (medidorAgua !== undefined) data.medidorAgua = medidorAgua;
+  if (codigoMedidorAgua !== undefined) data.codigoMedidorAgua = codigoMedidorAgua;
+  if (medidorGas !== undefined) data.medidorGas = medidorGas;
+  if (codigoMedidorGas !== undefined) data.codigoMedidorGas = codigoMedidorGas;
   if (ativo !== undefined) data.ativo = ativo;
   if (cpf) { data.cpfCnpj = `enc:${cpf.replace(/\D/g,"")}`; data.cpfCnpjHash = hashCpfCnpj(cpf); }
   if (novaSenha) data.senhaHash = await hashPassword(novaSenha);

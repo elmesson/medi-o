@@ -20,6 +20,14 @@ model Inquilino {
   mfaSecret        String?  // TOTP secret criptografado
   ativo            Boolean  @default(true)
   endereco         String?
+  // Medidores exclusivos por tipo
+  medidorEnergia        String?
+  codigoMedidorEnergia  String?  @unique
+  medidorAgua           String?
+  codigoMedidorAgua     String?  @unique
+  medidorGas            String?
+  codigoMedidorGas      String?  @unique
+  // legado (manter compatibilidade)
   medidor          String?  // nº do medidor físico
   codigoMedidor    String?  @unique // gerador MED-XXXX
   createdAt        DateTime @default(now())

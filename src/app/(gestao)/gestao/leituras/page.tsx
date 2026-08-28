@@ -20,16 +20,20 @@ export default function LeiturasGestaoPage(){
   useEffect(()=>{ load(); },[]);
 
   function validarQR(){
-    const found = inquilinos.find((i:any)=> i.codigoMedidor===codigoScan.trim());
+    const scan = codigoScan.trim();
+    const found = inquilinos.find((i:any)=> [i.codigoMedidorEnergia, i.codigoMedidorAgua, i.codigoMedidorGas, i.codigoMedidor].includes(scan));
     if(!found){ setScanOk(false); setScanMsg("Código não encontrado — verifique o QR do medidor."); return; }
+    const expected = form.tipo==="ENERGIA" ? (found.codigoMedidorEnergia|| found.codigoMedidor) : form.tipo==="AGUA" ? found.codigoMedidorAgua : found.codigoMedidorGas;
+    if(expected && expected!==scan){ setScanOk(false); setScanMsg(`QR de ${form.tipo} diverge — esperado ${expected} para ${found.nome}. Evita erro de tipo!`); return; }
+    if(!expected){ setScanOk(false); setScanMsg(`Inquilino ${found.nome} não possui medidor de ${form.tipo} cadastrado.`); return; }
     const vinc = (found.unidades||[])[0];
     if(vinc && vinc.unidadeId !== form.unidadeId && form.unidadeId){
-      setScanOk(false); setScanMsg(`QR válido para ${found.nome} mas unidade diverge (${vinc.unidadeId} ≠ ${form.unidadeId}) — erro evitado!`);
+      setScanOk(false); setScanMsg(`QR válido para ${found.nome} (${scan}) mas unidade diverge (${vinc.unidadeId} ≠ ${form.unidadeId}) — erro evitado!`);
       return;
     }
-    // auto-preenche unidade se vazio
     if(!form.unidadeId && vinc) setForm({...form, unidadeId: vinc.unidadeId});
-    setScanOk(true); setScanMsg(`✓ Validado: ${found.nome} • ${found.codigoMedidor} • Medidor ${found.medidor||"-"} — leitura liberada.`);
+    const medidorShow = form.tipo==="ENERGIA" ? found.medidorEnergia||found.medidor : form.tipo==="AGUA" ? found.medidorAgua : found.medidorGas;
+    setScanOk(true); setScanMsg(`✓ Validado ${form.tipo}: ${found.nome} • ${scan} • Medidor ${medidorShow||"-"} — leitura liberada.`);
   }
 
   async function salvar(e: React.FormEvent){
