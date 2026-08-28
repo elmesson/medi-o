@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Home, Gauge, Receipt, History, QrCode, MessageCircle, AlertTriangle, Bell, User } from "lucide-react";
+import { Home, Gauge, Receipt, History, QrCode, MessageCircle, AlertTriangle, Bell, User, TrendingUp } from "lucide-react";
 
 const nav = [
   { href: "/portal", icon: Home, label: "Dashboard" },
@@ -9,6 +9,7 @@ const nav = [
   { href: "/portal/pix", icon: QrCode, label: "PIX" },
   { href: "/portal/contestacoes", icon: AlertTriangle, label: "Contestações" },
   { href: "/portal/atendimento", icon: MessageCircle, label: "Atendimento" },
+  { href: "/portal/bi", icon: TrendingUp, label: "BI" },
   { href: "/portal/notificacoes", icon: Bell, label: "Notificações" },
   { href: "/portal/perfil", icon: User, label: "Perfil" },
 ];
