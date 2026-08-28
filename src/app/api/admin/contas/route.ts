@@ -14,6 +14,13 @@ async function requireGestao() {
   } catch { return null; }
 }
 
+export async function GET() {
+  const auth = await requireGestao();
+  if (!auth) return NextResponse.json({ error: "Acesso Gestão requerido" }, { status: 403 });
+  const lista = await prisma.fatura.findMany({ orderBy: { referencia: "desc" }, take: 50, include: { unidade: true } });
+  return NextResponse.json(lista);
+}
+
 export async function POST(req: NextRequest) {
   const auth = await requireGestao();
   if (!auth) return NextResponse.json({ error: "Acesso Gestão requerido (MASTER/ADMINISTRADOR/PROPRIETARIO)" }, { status: 403 });
@@ -26,4 +33,29 @@ export async function POST(req: NextRequest) {
     }
   });
   return NextResponse.json(fatura);
+}
+
+export async function PUT(req: NextRequest) {
+  const auth = await requireGestao();
+  if (!auth) return NextResponse.json({ error: "Acesso Gestão requerido" }, { status: 403 });
+  const { id, valorTotal, criterioRateio, dataVencimento, status, tipo, referencia } = await req.json();
+  const data:any = {};
+  if (valorTotal !== undefined) data.valorTotal = valorTotal;
+  if (criterioRateio !== undefined) data.criterioRateio = criterioRateio;
+  if (dataVencimento) data.dataVencimento = new Date(dataVencimento);
+  if (status) data.status = status;
+  if (tipo) data.tipo = tipo;
+  if (referencia) data.referencia = referencia;
+  const fatura = await prisma.fatura.update({ where: { id }, data });
+  return NextResponse.json(fatura);
+}
+
+export async function DELETE(req: NextRequest) {
+  const auth = await requireGestao();
+  if (!auth) return NextResponse.json({ error: "Acesso Gestão requerido" }, { status: 403 });
+  const { searchParams } = new URL(req.url);
+  const id = searchParams.get("id");
+  if (!id) return NextResponse.json({ error: "id obrigatório" }, { status: 400 });
+  await prisma.fatura.delete({ where: { id } });
+  return NextResponse.json({ ok: true });
 }

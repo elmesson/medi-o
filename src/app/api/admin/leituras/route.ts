@@ -29,3 +29,16 @@ export async function GET() {
   const leituras = await prisma.leitura.findMany({ orderBy: { referencia: "desc" }, take: 50, include: { unidade: true } });
   return NextResponse.json(leituras);
 }
+export async function PUT(req: NextRequest) {
+  const { id, leituraAnterior, leituraAtual, tarifa, bandeira } = await req.json();
+  const consumo = Number(leituraAtual) - Number(leituraAnterior);
+  const leitura = await prisma.leitura.update({ where: { id }, data: { leituraAnterior, leituraAtual, consumo, tarifa, bandeira } });
+  return NextResponse.json(leitura);
+}
+export async function DELETE(req: NextRequest) {
+  const { searchParams } = new URL(req.url);
+  const id = searchParams.get("id");
+  if (!id) return NextResponse.json({ error: "id obrigatório" }, { status: 400 });
+  await prisma.leitura.delete({ where: { id } });
+  return NextResponse.json({ ok: true });
+}
