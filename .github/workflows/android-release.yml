@@ -1,0 +1,111 @@
+name: Android Release
+
+on:
+  push:
+    tags: ['v*.*.*']
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    defaults:
+      run:
+        working-directory: mobile
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+
+      - name: Setup Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build web (Vite)
+        run: npm run build
+
+      - name: Generate Android project
+        run: npx cap add android || true
+
+      - name: Sync Capacitor
+        run: npx cap sync android
+
+      - name: Extract version from tag
+        id: version
+        run: echo "tag=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+
+      - name: Generate release keystore
+        run: |
+          keytool -genkeypair \
+            -alias elmesson-release \
+            -keyalg RSA -keysize 2048 \
+            -validity 10000 \
+            -keystore android/app/release.keystore \
+            -storepass elmesson2026 \
+            -keypass elmesson2026 \
+            -dname "CN=Elmesson, OU=Dev, O=Elmesson, L=Sao Paulo, ST=SP, C=BR"
+
+      - name: Configure signing
+        working-directory: mobile/android
+        run: |
+          cat > app/build.gradle << 'GRADLE'
+          android {
+            signingConfigs {
+              release {
+                storeFile file('release.keystore')
+                storePassword 'elmesson2026'
+                keyAlias 'elmesson-release'
+                keyPassword 'elmesson2026'
+              }
+            }
+            buildTypes {
+              release {
+                signingConfig signingConfigs.release
+                minifyEnabled false
+                proguardFiles getDefaultProguardFile('proguard-android-optimize.txt')
+              }
+            }
+          }
+          GRADLE
+
+      - name: Build release APK
+        working-directory: mobile/android
+        run: ./gradlew assembleRelease
+
+      - name: Rename APK
+        run: |
+          mv android/app/build/outputs/apk/release/app-release-unsigned.apk \
+             elmesson-inquilino-${{ steps.version.outputs.tag }}.apk
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: "Elmesson Inquilino v${{ steps.version.outputs.tag }}"
+          body: |
+            ## Elmesson Inquilino v${{ steps.version.outputs.tag }}
+
+            ### Instalação
+            1. Baixe o APK abaixo
+            2. Abra no Android (ativar "Fontes desconhecidas")
+            3. Siga as instruções de instalação
+
+            ### Changelog
+            Consulte os commits desta release.
+          files: elmesson-inquilino-${{ steps.version.outputs.tag }}.apk
+          draft: false
+          prerelease: false
