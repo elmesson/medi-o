@@ -13,8 +13,7 @@ export default function GestaoLayout({ children }: { children: React.ReactNode }
           <Link href="/gestao/condominio" className="bg-white/15 rounded-full px-3 py-1">Condomínio</Link>
           <Link href="/gestao/leituras" className="bg-white/15 rounded-full px-3 py-1">Leitura</Link>
           <Link href="/gestao/inquilinos" className="bg-white/15 rounded-full px-3 py-1">Inquilinos</Link>
-          <Link href="/gestao/configuracao" className="bg-white/15 rounded-full px-3 py-1">Leituristas</Link>
-          <Link href="/gestao/configuracao/pix" className="bg-white text-emerald-700 rounded-full px-3 py-1 font-semibold">Pix</Link>
+          <Link href="/gestao/configuracao" className="bg-white text-emerald-700 rounded-full px-3 py-1 font-semibold">Configuração</Link>
           <Link href="/login" className="bg-white/10 rounded-full px-3 py-1">Sair</Link>
         </nav>
       </header>
