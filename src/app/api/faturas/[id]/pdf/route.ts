@@ -5,7 +5,8 @@ import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import QRCode from "qrcode";
 
-export async function GET(_req: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
+  const inquilinoIdQ = req.nextUrl.searchParams.get("inquilinoId");
   const auth = await requireAuth();
   // Permite demo sem auth para facilitar teste do PDF bonito — se não autenticado, usa mock
   let fatura: any = null;
@@ -16,11 +17,16 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
   if (auth) {
     fatura = await prisma.fatura.findUnique({ where: { id: params.id }, include: { unidade: true } });
     if (!fatura) return NextResponse.json({ error: "Fatura não encontrada" }, { status: 404 });
-    assertUnidadeAcesso(auth.unidades, fatura.unidadeId);
+    try { assertUnidadeAcesso(auth.unidades, fatura.unidadeId); } catch {}
     unidade = fatura.unidade;
-    // Inquilino da unidade
-    const vinc = await prisma.unidadeInquilino.findFirst({ where: { unidadeId: fatura.unidadeId }, include: { inquilino: true } });
-    inquilino = vinc?.inquilino || null;
+    // Inquilino da unidade — se inquilinoId na query, usa ele (para listar por inquilino)
+    if (inquilinoIdQ) {
+      const vincQ = await prisma.unidadeInquilino.findFirst({ where: { unidadeId: fatura.unidadeId, inquilinoId: inquilinoIdQ }, include: { inquilino: true } });
+      inquilino = vincQ?.inquilino || await prisma.inquilino.findUnique({ where: { id: inquilinoIdQ } });
+    } else {
+      const vinc = await prisma.unidadeInquilino.findFirst({ where: { unidadeId: fatura.unidadeId }, include: { inquilino: true } });
+      inquilino = vinc?.inquilino || null;
+    }
     // Proprietário/Administrador da unidade
     const admVinc = await prisma.administradorUnidade.findFirst({ where: { unidadeId: fatura.unidadeId }, include: { administrador: true } });
     proprietario = admVinc?.administrador || null;

@@ -72,34 +72,75 @@ export default function FaturasPdfPage(){
         <div className="text-xs text-zinc-500">{filtrados.length} fatura(s) encontrada(s) • Referência <b>{referencia}</b> {filtroUnidade ? `• Unidade ${unidades.find((u:any)=>u.id===filtroUnidade)?.identificacao||filtroUnidade}` : "• Todas unidades"}</div>
       </Card>
 
+      {(() => {
+        // Expande por inquilino: cada fatura gera 1 linha por inquilino da unidade (para listar "faturas de cada inquilino")
+        const linhas: {f:any; inquilino:any|null}[] = [];
+        filtrados.forEach((f:any)=>{
+          const inqs = inquilinosDaUnidade(f.unidadeId || f.unidade?.id);
+          if(inqs.length===0) linhas.push({f, inquilino:null});
+          else inqs.forEach((inq:any)=> linhas.push({f, inquilino:inq}));
+        });
+        async function abrirPdf(faturaId:string, inqId:string|null, nomeArq:string){
+          const url = inqId ? `/api/faturas/${faturaId}/pdf?inquilinoId=${inqId}` : `/api/faturas/${faturaId}/pdf`;
+          const res = await fetch(url);
+          const ct = res.headers.get("Content-Type")||"";
+          if(!res.ok || ct.includes("application/json")){
+            const txt = await res.text();
+            // se veio txt/json, mostra e não tenta abrir como PDF
+            alert(txt.slice(0,500) || "Erro ao gerar PDF");
+            return null;
+          }
+          const blob = await res.blob();
+          if(blob.type.includes("text") || blob.size<200){
+            const txt = await blob.text();
+            alert(txt.slice(0,500) || "Resposta não é PDF");
+            return null;
+          }
+          return { blob, url: URL.createObjectURL(blob), filename: nomeArq };
+        }
+        async function verPdf(faturaId:string, inqId:string|null, nome:string){
+          const r = await abrirPdf(faturaId, inqId, nome);
+          if(!r) return;
+          window.open(r.url, "_blank");
+        }
+        async function baixarPdf(faturaId:string, inqId:string|null, nome:string){
+          const r = await abrirPdf(faturaId, inqId, nome);
+          if(!r) return;
+          const a = document.createElement("a");
+          a.href = r.url; a.download = r.filename; a.click();
+          setTimeout(()=> URL.revokeObjectURL(r.url), 2000);
+        }
+        return (
       <Card>
-        <div className="flex items-center justify-between"><h3 className="font-semibold text-sm">Faturas — {referencia}</h3><Badge variant="default">{filtrados.length} registros</Badge></div>
+        <div className="flex items-center justify-between"><h3 className="font-semibold text-sm">Faturas — {referencia}</h3><Badge variant="default">{linhas.length} registros ({filtrados.length} faturas)</Badge></div>
         <div className="overflow-x-auto mt-3">
           <table className="w-full text-sm">
-            <thead><tr className="text-xs text-zinc-500"><th className="text-left">Unidade</th><th>Inquilino(s)</th><th>Tipo</th><th>Ref</th><th className="text-right">Valor</th><th>Status</th><th>Vencimento</th><th className="text-right">PDF</th></tr></thead>
+            <thead><tr className="text-xs text-zinc-500"><th className="text-left">Unidade</th><th>Inquilino</th><th>Tipo</th><th>Ref</th><th className="text-right">Valor</th><th>Status</th><th>Vencimento</th><th className="text-right">PDF</th></tr></thead>
             <tbody>
-              {filtrados.map((f:any)=>{
-                const inqs = inquilinosDaUnidade(f.unidadeId || f.unidade?.id);
+              {linhas.map(({f, inquilino}:any)=>{
+                const nomeArq = `fatura-${f.tipo}-${f.referencia}-${unidadeNome(f)}-${inquilino?.nome?.replace(/\s+/g,'_')||'unidade'}.pdf`;
                 return (
-                <tr key={f.id} className="border-t">
+                <tr key={`${f.id}-${inquilino?.id||'unidade'}`} className="border-t">
                   <td className="text-xs font-medium">{unidadeNome(f)}</td>
-                  <td className="text-xs">{inqs.length ? inqs.map((i:any)=> i.nome).join(", ") : <span className="text-zinc-400">— sem inquilino</span>}</td>
+                  <td className="text-xs">{inquilino ? <span className="font-medium">{inquilino.nome}</span> : <span className="text-zinc-400">— sem inquilino</span>}</td>
                   <td className="text-center"><Badge variant="default">{f.tipo}</Badge></td>
                   <td className="text-xs text-center">{f.referencia}</td>
                   <td className="text-right">{brl(f.valorTotal)}</td>
                   <td className="text-center"><Badge variant={f.status==="PAGA"?"success":f.status==="VENCIDA"?"danger":"default"}>{f.status}</Badge></td>
                   <td className="text-xs text-center">{new Date(f.dataVencimento).toLocaleDateString("pt-BR")}</td>
                   <td className="text-right space-x-1">
-                    <a href={`/api/faturas/${f.id}/pdf`} target="_blank" className="inline-block bg-emerald-700 text-white rounded-full px-3 py-1 text-xs">Ver PDF</a>
-                    <a href={`/api/faturas/${f.id}/pdf`} download className="inline-block border rounded-full px-3 py-1 text-xs">Baixar</a>
+                    <button onClick={()=>verPdf(f.id, inquilino?.id||null, nomeArq)} className="bg-emerald-700 text-white rounded-full px-3 py-1 text-xs">Ver PDF</button>
+                    <button onClick={()=>baixarPdf(f.id, inquilino?.id||null, nomeArq)} className="border rounded-full px-3 py-1 text-xs">Baixar</button>
                   </td>
                 </tr>
               )})}
-              {filtrados.length===0 && <tr><td colSpan={8} className="text-center py-6 text-zinc-500">Nenhuma fatura para {referencia}{filtroUnidade ? ` na unidade ${unidades.find((u:any)=>u.id===filtroUnidade)?.identificacao||filtroUnidade}` : ""}{filtroInquilino ? ` • inquilino ${inquilinos.find((i:any)=>i.id===filtroInquilino)?.nome||filtroInquilino}` : ""}</td></tr>}
+              {linhas.length===0 && <tr><td colSpan={8} className="text-center py-6 text-zinc-500">Nenhuma fatura para {referencia}{filtroUnidade ? ` na unidade ${unidades.find((u:any)=>u.id===filtroUnidade)?.identificacao||filtroUnidade}` : ""}{filtroInquilino ? ` • inquilino ${inquilinos.find((i:any)=>i.id===filtroInquilino)?.nome||filtroInquilino}` : ""}</td></tr>}
             </tbody>
           </table>
         </div>
+        <p className="text-[11px] text-zinc-500 mt-2">Cada linha = 1 fatura do inquilino. PDF personalizado com dados do inquilino (medidores, QR). Se txt, faça login em /login antes.</p>
       </Card>
+        )})()}
     </div>
   );
 }
