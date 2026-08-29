@@ -23,10 +23,16 @@ model Inquilino {
   // Medidores exclusivos por tipo
   medidorEnergia        String?
   codigoMedidorEnergia  String?  @unique
+  tipoCobrancaEnergia   String?  @default("COMPARTILHADA") // RATIO | COMPARTILHADA | PORCENTAGEM
+  porcentagemEnergia    Decimal?
   medidorAgua           String?
   codigoMedidorAgua     String?  @unique
+  tipoCobrancaAgua      String?  @default("COMPARTILHADA")
+  porcentagemAgua       Decimal?
   medidorGas            String?
   codigoMedidorGas      String?  @unique
+  tipoCobrancaGas       String?  @default("COMPARTILHADA")
+  porcentagemGas        Decimal?
   // legado (manter compatibilidade)
   medidor          String?  // nº do medidor físico
   codigoMedidor    String?  @unique // gerador MED-XXXX

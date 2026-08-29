@@ -31,7 +31,7 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   const auth = await requireGestao();
   if (!auth) return NextResponse.json({ error: "Acesso Gestão requerido" }, { status: 403 });
-  const { nome, email, cpf, telefone, endereco, medidor, codigoMedidor, medidorEnergia, codigoMedidorEnergia, medidorAgua, codigoMedidorAgua, medidorGas, codigoMedidorGas, unidadeId, senha, leituraInicial, leituraInicialEnergia, leituraInicialAgua, leituraInicialGas } = await req.json();
+  const { nome, email, cpf, telefone, endereco, medidor, codigoMedidor, medidorEnergia, codigoMedidorEnergia, tipoCobrancaEnergia, porcentagemEnergia, medidorAgua, codigoMedidorAgua, tipoCobrancaAgua, porcentagemAgua, medidorGas, codigoMedidorGas, tipoCobrancaGas, porcentagemGas, unidadeId, senha, leituraInicial, leituraInicialEnergia, leituraInicialAgua, leituraInicialGas } = await req.json();
   if (!nome || !email || !cpf) return NextResponse.json({ error: "nome, email, cpf obrigatórios" }, { status: 400 });
   const cleanCpf = cpf.replace(/\D/g,"");
   const hash = hashCpfCnpj(cleanCpf);
@@ -46,9 +46,9 @@ export async function POST(req: NextRequest) {
       data: {
         nome, email, telefone, endereco: endereco || null,
         medidor: medEnergia, codigoMedidor: codigoEnergia,
-        medidorEnergia: medEnergia, codigoMedidorEnergia: codigoEnergia,
-        medidorAgua: medidorAgua || null, codigoMedidorAgua: codigoAgua,
-        medidorGas: medidorGas || null, codigoMedidorGas: codigoGas,
+        medidorEnergia: medEnergia, codigoMedidorEnergia: codigoEnergia, tipoCobrancaEnergia: tipoCobrancaEnergia || "COMPARTILHADA", porcentagemEnergia: tipoCobrancaEnergia==="PORCENTAGEM" ? (porcentagemEnergia||null) : null,
+        medidorAgua: medidorAgua || null, codigoMedidorAgua: codigoAgua, tipoCobrancaAgua: tipoCobrancaAgua || "COMPARTILHADA", porcentagemAgua: tipoCobrancaAgua==="PORCENTAGEM" ? (porcentagemAgua||null) : null,
+        medidorGas: medidorGas || null, codigoMedidorGas: codigoGas, tipoCobrancaGas: tipoCobrancaGas || "COMPARTILHADA", porcentagemGas: tipoCobrancaGas==="PORCENTAGEM" ? (porcentagemGas||null) : null,
         cpfCnpj: `enc:${cleanCpf}`, cpfCnpjHash: hash, senhaHash,
         unidades: unidadeId ? { create: { unidadeId } } : undefined
       }
@@ -81,7 +81,7 @@ export async function POST(req: NextRequest) {
 export async function PUT(req: NextRequest) {
   const auth = await requireGestao();
   if (!auth) return NextResponse.json({ error: "Acesso Gestão requerido" }, { status: 403 });
-  const { id, nome, email, cpf, telefone, endereco, medidor, codigoMedidor, medidorEnergia, codigoMedidorEnergia, medidorAgua, codigoMedidorAgua, medidorGas, codigoMedidorGas, ativo, novaSenha, unidadeId, leituraInicial, leituraInicialEnergia, leituraInicialAgua, leituraInicialGas } = await req.json();
+  const { id, nome, email, cpf, telefone, endereco, medidor, codigoMedidor, medidorEnergia, codigoMedidorEnergia, tipoCobrancaEnergia, porcentagemEnergia, medidorAgua, codigoMedidorAgua, tipoCobrancaAgua, porcentagemAgua, medidorGas, codigoMedidorGas, tipoCobrancaGas, porcentagemGas, ativo, novaSenha, unidadeId, leituraInicial, leituraInicialEnergia, leituraInicialAgua, leituraInicialGas } = await req.json();
   const data:any = {};
   if (nome !== undefined) data.nome = nome;
   if (email !== undefined) data.email = email;
@@ -91,10 +91,16 @@ export async function PUT(req: NextRequest) {
   if (codigoMedidor !== undefined) { data.codigoMedidor = codigoMedidor; data.codigoMedidorEnergia = codigoMedidor; }
   if (medidorEnergia !== undefined) { data.medidorEnergia = medidorEnergia; data.medidor = medidorEnergia; }
   if (codigoMedidorEnergia !== undefined) { data.codigoMedidorEnergia = codigoMedidorEnergia; data.codigoMedidor = codigoMedidorEnergia; }
+  if (tipoCobrancaEnergia !== undefined) data.tipoCobrancaEnergia = tipoCobrancaEnergia;
+  if (porcentagemEnergia !== undefined) data.porcentagemEnergia = tipoCobrancaEnergia==="PORCENTAGEM" ? porcentagemEnergia : null;
   if (medidorAgua !== undefined) data.medidorAgua = medidorAgua;
   if (codigoMedidorAgua !== undefined) data.codigoMedidorAgua = codigoMedidorAgua;
+  if (tipoCobrancaAgua !== undefined) data.tipoCobrancaAgua = tipoCobrancaAgua;
+  if (porcentagemAgua !== undefined) data.porcentagemAgua = tipoCobrancaAgua==="PORCENTAGEM" ? porcentagemAgua : null;
   if (medidorGas !== undefined) data.medidorGas = medidorGas;
   if (codigoMedidorGas !== undefined) data.codigoMedidorGas = codigoMedidorGas;
+  if (tipoCobrancaGas !== undefined) data.tipoCobrancaGas = tipoCobrancaGas;
+  if (porcentagemGas !== undefined) data.porcentagemGas = tipoCobrancaGas==="PORCENTAGEM" ? porcentagemGas : null;
   if (ativo !== undefined) data.ativo = ativo;
   if (cpf) { data.cpfCnpj = `enc:${cpf.replace(/\D/g,"")}`; data.cpfCnpjHash = hashCpfCnpj(cpf); }
   if (novaSenha) data.senhaHash = await hashPassword(novaSenha);

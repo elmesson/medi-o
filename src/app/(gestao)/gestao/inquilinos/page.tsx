@@ -6,7 +6,7 @@ function genCodigo(){ return `MED-${Math.random().toString(36).slice(2,6).toUppe
 
 export default function InquilinosPage(){
   const [lista,setLista]=useState<any[]>([]);
-  const [form,setForm]=useState({ nome:"", email:"", cpf:"", telefone:"", endereco:"", medidorEnergia:"", codigoMedidorEnergia: genCodigo(), leituraInicialEnergia:"", medidorAgua:"", codigoMedidorAgua: genCodigo(), leituraInicialAgua:"", medidorGas:"", codigoMedidorGas: genCodigo(), leituraInicialGas:"", unidadeId:"", senha:"" });
+  const [form,setForm]=useState({ nome:"", email:"", cpf:"", telefone:"", endereco:"", medidorEnergia:"", codigoMedidorEnergia: genCodigo(), leituraInicialEnergia:"", tipoCobrancaEnergia:"COMPARTILHADA", porcentagemEnergia:"", medidorAgua:"", codigoMedidorAgua: genCodigo(), leituraInicialAgua:"", tipoCobrancaAgua:"COMPARTILHADA", porcentagemAgua:"", medidorGas:"", codigoMedidorGas: genCodigo(), leituraInicialGas:"", tipoCobrancaGas:"COMPARTILHADA", porcentagemGas:"", unidadeId:"", senha:"" });
   const [edit,setEdit]=useState<any>(null);
   const [editForm,setEditForm]=useState<any>({});
 
@@ -23,20 +23,23 @@ export default function InquilinosPage(){
     if(form.leituraInicialEnergia) payload.leituraInicialEnergia = Number(form.leituraInicialEnergia);
     if(form.leituraInicialAgua) payload.leituraInicialAgua = Number(form.leituraInicialAgua);
     if(form.leituraInicialGas) payload.leituraInicialGas = Number(form.leituraInicialGas);
+    if(form.porcentagemEnergia) payload.porcentagemEnergia = Number(form.porcentagemEnergia);
+    if(form.porcentagemAgua) payload.porcentagemAgua = Number(form.porcentagemAgua);
+    if(form.porcentagemGas) payload.porcentagemGas = Number(form.porcentagemGas);
     const res = await fetch("/api/gestao/inquilinos", { method:"POST", headers:{ "Content-Type":"application/json"}, body: JSON.stringify(payload) });
-    if(res.ok){ setForm({ nome:"", email:"", cpf:"", telefone:"", endereco:"", medidorEnergia:"", codigoMedidorEnergia: genCodigo(), medidorAgua:"", codigoMedidorAgua: genCodigo(), medidorGas:"", codigoMedidorGas: genCodigo(), unidadeId:"", senha:"", leituraInicialEnergia:"", leituraInicialAgua:"", leituraInicialGas:"" }); load(); }
+    if(res.ok){ setForm({ nome:"", email:"", cpf:"", telefone:"", endereco:"", medidorEnergia:"", codigoMedidorEnergia: genCodigo(), leituraInicialEnergia:"", tipoCobrancaEnergia:"COMPARTILHADA", porcentagemEnergia:"", medidorAgua:"", codigoMedidorAgua: genCodigo(), leituraInicialAgua:"", tipoCobrancaAgua:"COMPARTILHADA", porcentagemAgua:"", medidorGas:"", codigoMedidorGas: genCodigo(), leituraInicialGas:"", tipoCobrancaGas:"COMPARTILHADA", porcentagemGas:"", unidadeId:"", senha:"" }); load(); }
     else {
       setLista([{ id: Math.random().toString(36).slice(2), ...form, ativo:true, cpfCnpj: form.cpf, createdAt: new Date().toISOString() }, ...lista]);
-      setForm({ nome:"", email:"", cpf:"", telefone:"", endereco:"", medidorEnergia:"", codigoMedidorEnergia: genCodigo(), medidorAgua:"", codigoMedidorAgua: genCodigo(), medidorGas:"", codigoMedidorGas: genCodigo(), unidadeId:"", senha:"", leituraInicialEnergia:"", leituraInicialAgua:"", leituraInicialGas:"" });
+      setForm({ nome:"", email:"", cpf:"", telefone:"", endereco:"", medidorEnergia:"", codigoMedidorEnergia: genCodigo(), leituraInicialEnergia:"", tipoCobrancaEnergia:"COMPARTILHADA", porcentagemEnergia:"", medidorAgua:"", codigoMedidorAgua: genCodigo(), leituraInicialAgua:"", tipoCobrancaAgua:"COMPARTILHADA", porcentagemAgua:"", medidorGas:"", codigoMedidorGas: genCodigo(), leituraInicialGas:"", tipoCobrancaGas:"COMPARTILHADA", porcentagemGas:"", unidadeId:"", senha:"" });
     }
   }
   function iniciarEdicao(item:any){
     setEdit(item);
     setEditForm({
       nome: item.nome, email: item.email, cpf: item.cpfCnpj?.replace("enc:","")||"", telefone: item.telefone||"", endereco: item.endereco||"",
-      medidorEnergia: item.medidorEnergia|| item.medidor||"", codigoMedidorEnergia: item.codigoMedidorEnergia|| item.codigoMedidor||"", leituraInicialEnergia:"",
-      medidorAgua: item.medidorAgua||"", codigoMedidorAgua: item.codigoMedidorAgua||"", leituraInicialAgua:"",
-      medidorGas: item.medidorGas||"", codigoMedidorGas: item.codigoMedidorGas||"", leituraInicialGas:"",
+      medidorEnergia: item.medidorEnergia|| item.medidor||"", codigoMedidorEnergia: item.codigoMedidorEnergia|| item.codigoMedidor||"", leituraInicialEnergia:"", tipoCobrancaEnergia: item.tipoCobrancaEnergia||"COMPARTILHADA", porcentagemEnergia: item.porcentagemEnergia||"",
+      medidorAgua: item.medidorAgua||"", codigoMedidorAgua: item.codigoMedidorAgua||"", leituraInicialAgua:"", tipoCobrancaAgua: item.tipoCobrancaAgua||"COMPARTILHADA", porcentagemAgua: item.porcentagemAgua||"",
+      medidorGas: item.medidorGas||"", codigoMedidorGas: item.codigoMedidorGas||"", leituraInicialGas:"", tipoCobrancaGas: item.tipoCobrancaGas||"COMPARTILHADA", porcentagemGas: item.porcentagemGas||"",
       ativo: item.ativo, novaSenha:"", unidadeId: item.unidades?.[0]?.unidadeId || ""
     });
   }
@@ -77,7 +80,11 @@ export default function InquilinosPage(){
                   <button type="button" onClick={()=>setForm({...form, codigoMedidorEnergia: genCodigo()})} className="bg-zinc-900 text-white rounded-xl px-3 text-xs">Gerar</button>
                 </div>
               </label>
-              <label className="text-sm">Medição inicial (para faturar)<input type="number" value={form.leituraInicialEnergia} onChange={e=>setForm({...form, leituraInicialEnergia:e.target.value})} placeholder="ex: 1250" className="mt-1 w-full border rounded-xl px-3 py-2" /></label>
+              <label className="text-sm">Medição inicial<input type="number" value={form.leituraInicialEnergia} onChange={e=>setForm({...form, leituraInicialEnergia:e.target.value})} placeholder="ex: 1250" className="mt-1 w-full border rounded-xl px-3 py-2" /></label>
+            </div>
+            <div className="grid md:grid-cols-2 gap-2">
+              <label className="text-sm">Tipo de cobrança<select value={form.tipoCobrancaEnergia} onChange={e=>setForm({...form, tipoCobrancaEnergia:e.target.value})} className="mt-1 w-full border rounded-xl px-3 py-2"><option value="COMPARTILHADA">Compartilhada (igual)</option><option value="RATIO">Ratio (fração ideal)</option><option value="PORCENTAGEM">Porcentagem (%)</option></select></label>
+              {form.tipoCobrancaEnergia==="PORCENTAGEM" && <label className="text-sm">%<input type="number" step="0.1" value={form.porcentagemEnergia} onChange={e=>setForm({...form, porcentagemEnergia:e.target.value})} placeholder="ex: 12.5" className="mt-1 w-full border rounded-xl px-3 py-2" /></label>}
             </div>
           </div>
 
@@ -91,7 +98,11 @@ export default function InquilinosPage(){
                   <button type="button" onClick={()=>setForm({...form, codigoMedidorAgua: genCodigo()})} className="bg-blue-600 text-white rounded-xl px-3 text-xs">Gerar</button>
                 </div>
               </label>
-              <label className="text-sm">Medição inicial (para faturar)<input type="number" value={form.leituraInicialAgua} onChange={e=>setForm({...form, leituraInicialAgua:e.target.value})} placeholder="ex: 80" className="mt-1 w-full border rounded-xl px-3 py-2" /></label>
+              <label className="text-sm">Medição inicial<input type="number" value={form.leituraInicialAgua} onChange={e=>setForm({...form, leituraInicialAgua:e.target.value})} placeholder="ex: 80" className="mt-1 w-full border rounded-xl px-3 py-2" /></label>
+            </div>
+            <div className="grid md:grid-cols-2 gap-2">
+              <label className="text-sm">Tipo de cobrança<select value={form.tipoCobrancaAgua} onChange={e=>setForm({...form, tipoCobrancaAgua:e.target.value})} className="mt-1 w-full border rounded-xl px-3 py-2"><option value="COMPARTILHADA">Compartilhada</option><option value="RATIO">Ratio</option><option value="PORCENTAGEM">Porcentagem</option></select></label>
+              {form.tipoCobrancaAgua==="PORCENTAGEM" && <label className="text-sm">%<input type="number" step="0.1" value={form.porcentagemAgua} onChange={e=>setForm({...form, porcentagemAgua:e.target.value})} placeholder="ex: 12.5" className="mt-1 w-full border rounded-xl px-3 py-2" /></label>}
             </div>
           </div>
 
@@ -105,7 +116,11 @@ export default function InquilinosPage(){
                   <button type="button" onClick={()=>setForm({...form, codigoMedidorGas: genCodigo()})} className="bg-orange-600 text-white rounded-xl px-3 text-xs">Gerar</button>
                 </div>
               </label>
-              <label className="text-sm">Medição inicial (para faturar)<input type="number" value={form.leituraInicialGas} onChange={e=>setForm({...form, leituraInicialGas:e.target.value})} placeholder="ex: 40" className="mt-1 w-full border rounded-xl px-3 py-2" /></label>
+              <label className="text-sm">Medição inicial<input type="number" value={form.leituraInicialGas} onChange={e=>setForm({...form, leituraInicialGas:e.target.value})} placeholder="ex: 40" className="mt-1 w-full border rounded-xl px-3 py-2" /></label>
+            </div>
+            <div className="grid md:grid-cols-2 gap-2">
+              <label className="text-sm">Tipo de cobrança<select value={form.tipoCobrancaGas} onChange={e=>setForm({...form, tipoCobrancaGas:e.target.value})} className="mt-1 w-full border rounded-xl px-3 py-2"><option value="COMPARTILHADA">Compartilhada</option><option value="RATIO">Ratio</option><option value="PORCENTAGEM">Porcentagem</option></select></label>
+              {form.tipoCobrancaGas==="PORCENTAGEM" && <label className="text-sm">%<input type="number" step="0.1" value={form.porcentagemGas} onChange={e=>setForm({...form, porcentagemGas:e.target.value})} placeholder="ex: 12.5" className="mt-1 w-full border rounded-xl px-3 py-2" /></label>}
             </div>
           </div>
 
@@ -128,6 +143,7 @@ export default function InquilinosPage(){
                     <div className="flex flex-col items-center gap-1">
                       <span className="font-mono text-[11px]">{item.codigoMedidorEnergia|| item.codigoMedidor || "-"}</span>
                       <span className="text-[10px]">{item.medidorEnergia|| item.medidor||"-"}</span>
+                      <span className="text-[9px] bg-zinc-100 rounded px-1">{item.tipoCobrancaEnergia||"COMPARTILHADA"}{item.porcentagemEnergia?` ${item.porcentagemEnergia}%`:""}</span>
                       {(item.codigoMedidorEnergia|| item.codigoMedidor) && <img src={`https://api.qrserver.com/v1/create-qr-code/?size=60x60&data=${encodeURIComponent(item.codigoMedidorEnergia|| item.codigoMedidor)}`} alt="QR energia" className="w-12 h-12 border rounded" />}
                     </div>
                   </td>
@@ -135,6 +151,7 @@ export default function InquilinosPage(){
                     <div className="flex flex-col items-center gap-1">
                       <span className="font-mono text-[11px]">{item.codigoMedidorAgua||"-"}</span>
                       <span className="text-[10px]">{item.medidorAgua||"-"}</span>
+                      <span className="text-[9px] bg-blue-100 rounded px-1">{item.tipoCobrancaAgua||"COMPARTILHADA"}{item.porcentagemAgua?` ${item.porcentagemAgua}%`:""}</span>
                       {item.codigoMedidorAgua && <img src={`https://api.qrserver.com/v1/create-qr-code/?size=60x60&data=${encodeURIComponent(item.codigoMedidorAgua)}`} alt="QR agua" className="w-12 h-12 border rounded" />}
                     </div>
                   </td>
@@ -142,6 +159,7 @@ export default function InquilinosPage(){
                     <div className="flex flex-col items-center gap-1">
                       <span className="font-mono text-[11px]">{item.codigoMedidorGas||"-"}</span>
                       <span className="text-[10px]">{item.medidorGas||"-"}</span>
+                      <span className="text-[9px] bg-orange-100 rounded px-1">{item.tipoCobrancaGas||"COMPARTILHADA"}{item.porcentagemGas?` ${item.porcentagemGas}%`:""}</span>
                       {item.codigoMedidorGas && <img src={`https://api.qrserver.com/v1/create-qr-code/?size=60x60&data=${encodeURIComponent(item.codigoMedidorGas)}`} alt="QR gas" className="w-12 h-12 border rounded" />}
                     </div>
                   </td>
@@ -168,10 +186,16 @@ export default function InquilinosPage(){
               <label className="text-sm md:col-span-2">Endereço<input value={editForm.endereco} onChange={e=>setEditForm({...editForm, endereco:e.target.value})} className="mt-1 w-full border rounded-xl px-3 py-2" /></label>
               <label className="text-sm">Medidor Energia<input value={editForm.medidorEnergia} onChange={e=>setEditForm({...editForm, medidorEnergia:e.target.value})} className="mt-1 w-full border rounded-xl px-3 py-2" /></label>
               <label className="text-sm">Código Energia<div className="flex gap-1 mt-1"><input value={editForm.codigoMedidorEnergia} onChange={e=>setEditForm({...editForm, codigoMedidorEnergia:e.target.value})} className="flex-1 border rounded-xl px-3 py-2 font-mono text-xs" /><button type="button" onClick={()=>setEditForm({...editForm, codigoMedidorEnergia: genCodigo()})} className="bg-zinc-900 text-white rounded-xl px-3 text-xs">Gerar</button></div></label>
+              <label className="text-sm">Tipo Energia<select value={editForm.tipoCobrancaEnergia} onChange={e=>setEditForm({...editForm, tipoCobrancaEnergia:e.target.value})} className="mt-1 w-full border rounded-xl px-3 py-2"><option value="COMPARTILHADA">Compartilhada</option><option value="RATIO">Ratio</option><option value="PORCENTAGEM">Porcentagem</option></select></label>
+              {editForm.tipoCobrancaEnergia==="PORCENTAGEM" && <label className="text-sm">% Energia<input type="number" step="0.1" value={editForm.porcentagemEnergia} onChange={e=>setEditForm({...editForm, porcentagemEnergia:e.target.value})} className="mt-1 w-full border rounded-xl px-3 py-2" /></label>}
               <label className="text-sm">Medidor Água<input value={editForm.medidorAgua} onChange={e=>setEditForm({...editForm, medidorAgua:e.target.value})} className="mt-1 w-full border rounded-xl px-3 py-2" /></label>
               <label className="text-sm">Código Água<div className="flex gap-1 mt-1"><input value={editForm.codigoMedidorAgua} onChange={e=>setEditForm({...editForm, codigoMedidorAgua:e.target.value})} className="flex-1 border rounded-xl px-3 py-2 font-mono text-xs" /><button type="button" onClick={()=>setEditForm({...editForm, codigoMedidorAgua: genCodigo()})} className="bg-blue-600 text-white rounded-xl px-3 text-xs">Gerar</button></div></label>
+              <label className="text-sm">Tipo Água<select value={editForm.tipoCobrancaAgua} onChange={e=>setEditForm({...editForm, tipoCobrancaAgua:e.target.value})} className="mt-1 w-full border rounded-xl px-3 py-2"><option value="COMPARTILHADA">Compartilhada</option><option value="RATIO">Ratio</option><option value="PORCENTAGEM">Porcentagem</option></select></label>
+              {editForm.tipoCobrancaAgua==="PORCENTAGEM" && <label className="text-sm">% Água<input type="number" step="0.1" value={editForm.porcentagemAgua} onChange={e=>setEditForm({...editForm, porcentagemAgua:e.target.value})} className="mt-1 w-full border rounded-xl px-3 py-2" /></label>}
               <label className="text-sm">Medidor Gás<input value={editForm.medidorGas} onChange={e=>setEditForm({...editForm, medidorGas:e.target.value})} className="mt-1 w-full border rounded-xl px-3 py-2" /></label>
               <label className="text-sm">Código Gás<div className="flex gap-1 mt-1"><input value={editForm.codigoMedidorGas} onChange={e=>setEditForm({...editForm, codigoMedidorGas:e.target.value})} className="flex-1 border rounded-xl px-3 py-2 font-mono text-xs" /><button type="button" onClick={()=>setEditForm({...editForm, codigoMedidorGas: genCodigo()})} className="bg-orange-600 text-white rounded-xl px-3 text-xs">Gerar</button></div></label>
+              <label className="text-sm">Tipo Gás<select value={editForm.tipoCobrancaGas} onChange={e=>setEditForm({...editForm, tipoCobrancaGas:e.target.value})} className="mt-1 w-full border rounded-xl px-3 py-2"><option value="COMPARTILHADA">Compartilhada</option><option value="RATIO">Ratio</option><option value="PORCENTAGEM">Porcentagem</option></select></label>
+              {editForm.tipoCobrancaGas==="PORCENTAGEM" && <label className="text-sm">% Gás<input type="number" step="0.1" value={editForm.porcentagemGas} onChange={e=>setEditForm({...editForm, porcentagemGas:e.target.value})} className="mt-1 w-full border rounded-xl px-3 py-2" /></label>}
               <label className="text-sm flex items-center gap-2 mt-6"><input type="checkbox" checked={editForm.ativo} onChange={e=>setEditForm({...editForm, ativo:e.target.checked})} /> Ativo</label>
               <label className="text-sm">Unidade ID<input value={editForm.unidadeId} onChange={e=>setEditForm({...editForm, unidadeId:e.target.value})} className="mt-1 w-full border rounded-xl px-3 py-2" /></label>
               <label className="text-sm">Nova senha<input type="password" value={editForm.novaSenha} onChange={e=>setEditForm({...editForm, novaSenha:e.target.value})} placeholder="deixe em branco" className="mt-1 w-full border rounded-xl px-3 py-2" /></label>
