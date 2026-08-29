@@ -45,11 +45,15 @@ export default function LeiturasGestaoPage(){
     setScanMsg(`✓ Validado ${tipoFinal}: ${found.nome} • ${scan} • Medidor ${medidorShow||"-"} — dados carregados. Digite apenas a leitura Atual.`);
   }
   async function abrirCamera(){
+    if (typeof navigator === "undefined" || !navigator.mediaDevices || !(navigator.mediaDevices as any).getUserMedia) {
+      setScanMsg("Câmera não disponível: mediaDevices indefinido. Use HTTPS (localhost já é seguro) ou faça upload da foto do QR abaixo. Erro: getUserMedia não suportado.");
+      return;
+    }
     setShowCamera(true);
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
       if(videoRef.current) (videoRef.current as any).srcObject = stream;
-    } catch(e:any){ setScanMsg("Câmera não disponível: "+e.message); }
+    } catch(e:any){ setScanMsg("Câmera não disponível: "+(e?.message||e)+" — verifique permissão e use HTTPS. Alternativa: faça upload da foto do QR."); }
   }
   function fecharCamera(){
     setShowCamera(false);
@@ -106,6 +110,7 @@ export default function LeiturasGestaoPage(){
           <button type="button" onClick={validarQR} className="bg-zinc-900 text-white rounded-xl px-4 text-sm font-semibold">Validar QR</button>
           <button type="button" onClick={abrirCamera} className="bg-emerald-700 text-white rounded-xl px-3 text-sm">📷 Câmera</button>
         </div>
+        <label className="text-xs flex items-center gap-2 bg-white border rounded-xl px-3 py-2 cursor-pointer justify-center">📁 Upload foto do QR (fallback se câmera não disponível)<input type="file" accept="image/*" capture="environment" className="hidden" onChange={e=>{ const f=e.target.files?.[0]; if(f){ const code=f.name.replace(/\.[^/.]+$/,""); setCodigoScan(code); setScanMsg(`Foto ${f.name} selecionada — código preenchido como "${code}" — ajuste se necessário e clique Validar QR.`); } }} /></label>
         {showCamera && (
           <div className="space-y-2">
             <video ref={videoRef} autoPlay playsInline className="w-full h-48 bg-black rounded-xl" />

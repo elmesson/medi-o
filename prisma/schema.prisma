@@ -148,6 +148,8 @@ model Fatura {
   valorDemonstrativo   Decimal?
   descricaoDemonstrativo String?
   exibirDemonstrativo  Boolean @default(true) // AGUA/GAS/ENERGIA toggle; CONDOMINIO sempre true
+  // Bandeira tarifária (somente ENERGIA)
+  bandeira         String?
   createdAt        DateTime     @default(now())
 
   unidade          Unidade      @relation(fields: [unidadeId], references: [id], onDelete: Cascade)

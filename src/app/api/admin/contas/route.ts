@@ -25,9 +25,10 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   const auth = await requireGestao();
   if (!auth) return NextResponse.json({ error: "Acesso Gestão requerido (MASTER/ADMINISTRADOR/PROPRIETARIO)" }, { status: 403 });
-  const { unidadeId, tipo, referencia, valorTotal, criterioRateio, dataEmissao, dataVencimento, status, valorDemonstrativo, descricaoDemonstrativo, exibirDemonstrativo } = await req.json();
+  const { unidadeId, tipo, referencia, valorTotal, criterioRateio, dataEmissao, dataVencimento, status, valorDemonstrativo, descricaoDemonstrativo, exibirDemonstrativo, bandeira } = await req.json();
   if (!unidadeId || !tipo || !referencia || !valorTotal) return NextResponse.json({ error: "unidadeId, tipo, referencia, valorTotal obrigatórios" }, { status: 400 });
   const isCondo = tipo === "CONDOMINIO";
+  const bandeiraVal = tipo === "ENERGIA" ? (bandeira || null) : null;
   const pixConfig = await prisma.pixConfig.findFirst({ where: { ativo: true }, orderBy: { createdAt: "desc" } });
   const txid = `pix-${referencia}-${tipo}-${unidadeId.slice(0,4)}-${Date.now()}`.slice(0,25);
   const pixQrCode = pixConfig
@@ -40,6 +41,7 @@ export async function POST(req: NextRequest) {
       valorDemonstrativo: valorDemonstrativo !== undefined && valorDemonstrativo !== "" ? valorDemonstrativo : null,
       descricaoDemonstrativo: descricaoDemonstrativo || null,
       exibirDemonstrativo: isCondo ? true : (exibirDemonstrativo !== undefined ? exibirDemonstrativo : true),
+      bandeira: bandeiraVal,
     }
   });
   return NextResponse.json(fatura);
@@ -48,7 +50,7 @@ export async function POST(req: NextRequest) {
 export async function PUT(req: NextRequest) {
   const auth = await requireGestao();
   if (!auth) return NextResponse.json({ error: "Acesso Gestão requerido" }, { status: 403 });
-  const { id, valorTotal, criterioRateio, dataVencimento, status, tipo, referencia, valorDemonstrativo, descricaoDemonstrativo, exibirDemonstrativo } = await req.json();
+  const { id, valorTotal, criterioRateio, dataVencimento, status, tipo, referencia, valorDemonstrativo, descricaoDemonstrativo, exibirDemonstrativo, bandeira } = await req.json();
   const data:any = {};
   if (valorTotal !== undefined) data.valorTotal = valorTotal;
   if (criterioRateio !== undefined) data.criterioRateio = criterioRateio;
@@ -63,6 +65,11 @@ export async function PUT(req: NextRequest) {
     const current = await prisma.fatura.findUnique({ where: { id } });
     const isCondo = (tipo || current?.tipo) === "CONDOMINIO";
     data.exibirDemonstrativo = isCondo ? true : exibirDemonstrativo;
+  }
+  if (bandeira !== undefined) {
+    const current = await prisma.fatura.findUnique({ where: { id } });
+    const tipoFinal = tipo || current?.tipo;
+    data.bandeira = tipoFinal === "ENERGIA" ? bandeira : null;
   }
   const fatura = await prisma.fatura.update({ where: { id }, data });
   return NextResponse.json(fatura);

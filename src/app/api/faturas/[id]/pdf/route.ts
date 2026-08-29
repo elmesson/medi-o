@@ -186,6 +186,26 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
   else doc.text(`Demonstrativo desativado pelo proprietário  •  Status: ${fatura.status}  •  Condomínio sempre exibe Valor e Descrição`, 16, finalY + 10);
   finalY += 22;
 
+  // ===== BANDEIRA TARIFÁRIA (somente ENERGIA) =====
+  if (fatura.tipo === "ENERGIA" && (fatura as any).bandeira) {
+    const bandeiraObs: Record<string,string> = {
+      VERDE: "Verde - Condições favoráveis de geração de energia.",
+      AMARELA: "Amarela - A cada 100 kWh consumido — Condições menos favoráveis.",
+      VERMELHA_P1: "Vermelha Patamar 1 - A cada 100 kWh — Condições mais custosas.",
+      VERMELHA_P2: "Vermelha Patamar 2 - Condição ainda mais custosa de geração.",
+    };
+    const cor = (fatura as any).bandeira as string;
+    const obs = bandeiraObs[cor] || cor;
+    const corBg: Record<string,[number,number,number]> = { VERDE:[220,252,231], AMARELA:[254,249,195], VERMELHA_P1:[255,228,230], VERMELHA_P2:[254,205,211] };
+    const [br,bg,bb] = corBg[cor] || [240,253,244];
+    doc.setFillColor(br,bg,bb);
+    doc.setDrawColor(187,247,208);
+    doc.roundedRect(14, finalY, W - 28, 12, 3,3,"FD");
+    doc.setFontSize(7); doc.setFont("helvetica","bold"); doc.setTextColor(15,23,42);
+    doc.text(`Bandeira tarifária: ${cor} — ${obs}`, 16, finalY + 7);
+    finalY += 16;
+  }
+
   // ===== INQUILINO / MEDIDORES (ENERGIA, ÁGUA, GÁS) QRCODE / PROPRIETÁRIO / LEITURA =====
   const codigoEnergia = inquilino?.codigoMedidorEnergia || inquilino?.codigoMedidor || null;
   const codigoAgua = inquilino?.codigoMedidorAgua || null;
