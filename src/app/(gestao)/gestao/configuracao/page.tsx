@@ -7,16 +7,24 @@ export default function ConfiguracaoPage(){
   const [edit,setEdit]=useState<any>(null);
   const [editForm,setEditForm]=useState<any>({});
 
+  const [authMsg,setAuthMsg]=useState<string|null>(null);
   async function load(){
-    const r = await fetch("/api/gestao/configuracao/leituristas").then(res=>res.json()).catch(()=>[]);
-    if(Array.isArray(r)) setLista(r); else setLista([]);
+    const res = await fetch("/api/gestao/configuracao/leituristas");
+    const j = await res.json().catch(()=>[]);
+    if(res.ok && Array.isArray(j)) { setLista(j); setAuthMsg(null); }
+    else if(res.status===403) { setAuthMsg(j.error||"Acesso Gestão requerido"); setLista([]); }
+    else setLista([]);
   }
   useEffect(()=>{ load(); },[]);
   async function criar(e: React.FormEvent){
     e.preventDefault();
     const res = await fetch("/api/gestao/configuracao/leituristas", { method:"POST", headers:{ "Content-Type":"application/json"}, body: JSON.stringify(form) });
     if(res.ok){ setForm({ nome:"", email:"", senha:"", telefone:"", regiao:"", matricula:"" }); load(); }
-    else { const j=await res.json().catch(()=>({})); alert(j.error||"Erro"); }
+    else {
+      const j=await res.json().catch(()=>({}));
+      if(res.status===403) alert(`Acesso Gestão requerido — faça login como Master/Administrador/Proprietário.\n\nUse login único em /login:\n• Master: master@elmesson.com.br / master123\n• Admin: admin.centro@elmesson.com.br / admin123\n\nErro: ${j.error}`);
+      else alert(j.error||"Erro");
+    }
   }
   function iniciarEdicao(item:any){
     setEdit(item);
@@ -42,6 +50,7 @@ export default function ConfiguracaoPage(){
         <a href="/gestao/configuracao/pix" className="bg-white border rounded-full px-3 py-1 text-xs">Pix BCB</a>
       </div>
       <p className="text-xs text-zinc-500">Crie logins exclusivos para leiturista (acesso somente à tela Leitura, com rastreabilidade e scanner QR via câmera).</p>
+      {authMsg && <div className="bg-rose-50 border border-rose-200 rounded-2xl p-3 text-sm text-rose-700">⚠️ {authMsg} — <a href="/login" className="underline font-semibold">Faça login</a> como <b>master@elmesson.com.br / master123</b> (ou admin.centro) para liberar o cadastro.</div>}
 
       <Card className="space-y-3">
         <h3 className="font-semibold text-sm">Novo leiturista</h3>
