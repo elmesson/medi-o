@@ -10,15 +10,31 @@ export default function LeiturasGestaoPage(){
   const [scanMsg,setScanMsg]=useState<string|null>(null);
   const [scanOk,setScanOk]=useState<boolean|null>(null);
   const [inquilinos,setInquilinos]=useState<any[]>([]);
+  const [unidades,setUnidades]=useState<any[]>([]);
   const [showCamera,setShowCamera]=useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const [sucesso,setSucesso]=useState<any>(null);
 
+  function unidadeNome(id:string){
+    const u = unidades.find((x:any)=> x.id===id);
+    if(u) return u.identificacao;
+    for(const inq of inquilinos){
+      const v = (inq.unidades||[]).find((vv:any)=> vv.unidadeId===id || vv.unidade?.id===id);
+      if(v?.unidade?.identificacao) return v.unidade.identificacao;
+      if(v?.unidadeId && v?.unidade?.identificacao) return v.unidade.identificacao;
+    }
+    return id;
+  }
+
   async function load(){
     const r = await fetch("/api/admin/leituras").then(res=>res.json()).catch(()=>[]);
     if(Array.isArray(r)) setLista(r);
-    const inq = await fetch("/api/gestao/inquilinos").then(res=>res.json()).catch(()=>[]);
+    const [inq, uni] = await Promise.all([
+      fetch("/api/gestao/inquilinos").then(res=>res.json()).catch(()=>[]),
+      fetch("/api/admin/unidades").then(res=>res.json()).catch(()=>[]),
+    ]);
     if(Array.isArray(inq)) setInquilinos(inq);
+    if(Array.isArray(uni) && !uni[0]?.error) setUnidades(uni);
   }
   useEffect(()=>{ load(); },[]);
 
@@ -123,8 +139,8 @@ export default function LeiturasGestaoPage(){
       {sucesso && (
         <Card className="bg-emerald-600 text-white border-emerald-700">
           <h3 className="font-bold">✓ MEDIÇÃO DADOS DO INQUILINO FOI SALVO COM SUCESSO</h3>
-          <p className="text-sm mt-1 opacity-90">{sucesso.inquilino} • {sucesso.unidadeId} • {sucesso.tipo} • Leitura Atual {sucesso.leituraAtual}</p>
-          {sucesso.proximo && <p className="text-xs mt-2 opacity-80">Próximo medidor sugerido: <b>{sucesso.proximo.nome}</b> • {sucesso.proximo.codigoMedidorEnergia|| sucesso.proximo.codigoMedidor|| sucesso.proximo.codigoMedidorAgua} • Unidade {sucesso.proximo.unidades?.[0]?.unidadeId||""}</p>}
+          <p className="text-sm mt-1 opacity-90">{sucesso.inquilino} • {unidadeNome(sucesso.unidadeId)} • {sucesso.tipo} • Leitura Atual {sucesso.leituraAtual}</p>
+          {sucesso.proximo && <p className="text-xs mt-2 opacity-80">Próximo medidor sugerido: <b>{sucesso.proximo.nome}</b> • {sucesso.proximo.codigoMedidorEnergia|| sucesso.proximo.codigoMedidor|| sucesso.proximo.codigoMedidorAgua} • Unidade {unidadeNome(sucesso.proximo.unidades?.[0]?.unidadeId||"")}</p>}
           <div className="flex gap-2 mt-3">
             <button onClick={()=>{
               if(sucesso.proximo){
@@ -143,7 +159,7 @@ export default function LeiturasGestaoPage(){
         <h3 className="font-semibold text-sm">2) Realizar leitura do inquilino</h3>
         <p className="text-xs text-zinc-500">{scanOk ? "QR validado — pode informar a medição." : "Valide o QR acima para liberar o salvamento."}</p>
         <form onSubmit={salvar} className="grid md:grid-cols-3 gap-3">
-          <label className="text-sm">Unidade ID<input value={form.unidadeId} readOnly={!!scanOk} className={`mt-1 w-full border rounded-xl px-3 py-2 ${scanOk?"bg-zinc-100":""}`} placeholder="bl-a-101" onChange={e=>setForm({...form, unidadeId:e.target.value})} /></label>
+          <label className="text-sm">Unidade<input value={form.unidadeId ? unidadeNome(form.unidadeId) : ""} readOnly={!!scanOk} className={`mt-1 w-full border rounded-xl px-3 py-2 ${scanOk?"bg-zinc-100":""}`} placeholder="Selecione via QR" onChange={e=>setForm({...form, unidadeId:e.target.value})} /></label>
           <label className="text-sm">Tipo<select value={form.tipo} disabled={!!scanOk} className={`mt-1 w-full border rounded-xl px-3 py-2 ${scanOk?"bg-zinc-100":""}`} onChange={e=>setForm({...form, tipo:e.target.value as any})}><option>ENERGIA</option><option>AGUA</option><option>GAS</option></select></label>
           <label className="text-sm">Referência<input value={form.referencia} readOnly={!!scanOk} className={`mt-1 w-full border rounded-xl px-3 py-2 ${scanOk?"bg-zinc-100":""}`} onChange={e=>setForm({...form, referencia:e.target.value})} /></label>
           <label className="text-sm">Bandeira<select value={form.bandeira} disabled={!!scanOk} className={`mt-1 w-full border rounded-xl px-3 py-2 ${scanOk?"bg-zinc-100":""}`} onChange={e=>setForm({...form, bandeira:e.target.value})}><option>VERDE</option><option>AMARELA</option><option>VERMELHA_P1</option><option>VERMELHA_P2</option></select></label>
@@ -162,7 +178,7 @@ export default function LeiturasGestaoPage(){
             <thead><tr className="text-xs text-zinc-500"><th>Unidade</th><th>Tipo</th><th>Ref</th><th>Anterior</th><th>Atual</th><th>Consumo</th><th>Leiturista</th><th>Bandeira</th><th className="text-right">Ações</th></tr></thead>
             <tbody>
               {lista.slice(0,20).map((l:any)=>(
-                <tr key={l.id} className="border-t"><td className="text-xs">{l.unidade?.identificacao|| l.unidadeId?.slice(0,8)}</td><td className="text-center"><Badge variant="default">{l.tipo}</Badge></td><td className="text-xs text-center">{l.referencia}</td><td className="text-right">{l.leituraAnterior}</td><td className="text-right">{l.leituraAtual}</td><td className="text-right font-bold">{l.consumo}</td><td className="text-xs text-center">{l.leituristaNome|| <span className="text-zinc-400">—</span>}</td><td className="text-center text-xs">{l.bandeira||"-"}</td><td className="text-right space-x-1"><button onClick={()=>iniciarEdicao(l)} className="text-xs bg-emerald-700 text-white rounded-full px-3 py-1">Alterar</button><button onClick={()=>remover(l.id)} className="text-xs text-rose-600">Remover</button></td></tr>
+                <tr key={l.id} className="border-t"><td className="text-xs">{l.unidade?.identificacao|| unidadeNome(l.unidadeId)}</td><td className="text-center"><Badge variant="default">{l.tipo}</Badge></td><td className="text-xs text-center">{l.referencia}</td><td className="text-right">{l.leituraAnterior}</td><td className="text-right">{l.leituraAtual}</td><td className="text-right font-bold">{l.consumo}</td><td className="text-xs text-center">{l.leituristaNome|| <span className="text-zinc-400">—</span>}</td><td className="text-center text-xs">{l.bandeira||"-"}</td><td className="text-right space-x-1"><button onClick={()=>iniciarEdicao(l)} className="text-xs bg-emerald-700 text-white rounded-full px-3 py-1">Alterar</button><button onClick={()=>remover(l.id)} className="text-xs text-rose-600">Remover</button></td></tr>
               ))}
               {lista.length===0 && <tr><td colSpan={10} className="text-center py-6 text-zinc-500">Nenhuma leitura</td></tr>}
             </tbody>
