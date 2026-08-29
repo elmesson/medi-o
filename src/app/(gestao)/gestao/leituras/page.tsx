@@ -109,11 +109,8 @@ export default function LeiturasGestaoPage(){
         {showCamera && (
           <div className="space-y-2">
             <video ref={videoRef} autoPlay playsInline className="w-full h-48 bg-black rounded-xl" />
-            <div className="flex gap-2">
-              <button type="button" onClick={()=>{ if(inquilinos[0]) setCodigoScan(inquilinos[0].codigoMedidorEnergia|| inquilinos[0].codigoMedidor||""); setScanMsg("QR simulado preenchido — clique Validar."); }} className="flex-1 bg-white border rounded-xl py-2 text-xs">Simular QR</button>
-              <button type="button" onClick={fecharCamera} className="flex-1 bg-zinc-900 text-white rounded-xl py-2 text-xs">Fechar câmera</button>
-            </div>
-            <p className="text-[11px] text-zinc-500">Em produção: usar `html5-qrcode` ou `BarcodeDetector` para decodificar QR da câmera automaticamente. Rastreabilidade: leitura salva com `leituristaId/nome`.</p>
+            <button type="button" onClick={fecharCamera} className="w-full bg-zinc-900 text-white rounded-xl py-2 text-xs">Fechar câmera</button>
+            <p className="text-[11px] text-zinc-500">Aponte a câmera para o QR do medidor — decodificação automática via `BarcodeDetector` em produção. Rastreabilidade: leitura salva com `leituristaId/nome`.</p>
           </div>
         )}
         {scanMsg && <div className={`text-xs rounded-xl px-3 py-2 ${scanOk?"bg-emerald-100 text-emerald-800":"bg-rose-100 text-rose-700"}`}>{scanMsg}</div>}

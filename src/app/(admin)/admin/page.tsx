@@ -39,7 +39,8 @@ export default function AdminPage(){
       )}
 
       <Link href="/admin/administradores" className="block bg-zinc-900 text-white rounded-2xl p-4 text-center font-semibold">Gerenciar Administradores & Proprietários →</Link>
-      <div className="text-xs text-zinc-500 text-center">Master só vê este dashboard + grade de cadastros. Nada mais.</div>
+      <Link href="/admin/unidades" className="block bg-white border-2 border-emerald-600 rounded-2xl p-4 text-center font-semibold text-emerald-700">Gerenciar Unidades — Unidade ID (código do proprietário) →</Link>
+      <div className="text-xs text-zinc-500 text-center">Master: cadastre Unidade ID aqui se não existir para uso em Gestão.</div>
     </div>
   );
 }

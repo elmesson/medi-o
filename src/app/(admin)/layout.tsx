@@ -9,7 +9,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         </div>
         <nav className="flex gap-2 text-xs">
           <Link href="/admin" className="bg-white/10 hover:bg-white/20 rounded-full px-3 py-1">Dashboard</Link>
-          <Link href="/admin/administradores" className="bg-emerald-500 hover:bg-emerald-600 rounded-full px-3 py-1 font-semibold">Administradores & Proprietários</Link>
+          <Link href="/admin/administradores" className="bg-white/10 hover:bg-white/20 rounded-full px-3 py-1">Administradores</Link>
+          <Link href="/admin/unidades" className="bg-emerald-500 hover:bg-emerald-600 rounded-full px-3 py-1 font-semibold">Unidades</Link>
           <Link href="/admin/login" className="bg-white text-zinc-900 rounded-full px-3 py-1">Login Master</Link>
         </nav>
       </header>

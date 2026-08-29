@@ -9,11 +9,14 @@ export default function InquilinosPage(){
   const [form,setForm]=useState({ nome:"", email:"", cpf:"", telefone:"", endereco:"", medidorEnergia:"", codigoMedidorEnergia: genCodigo(), leituraInicialEnergia:"", tipoCobrancaEnergia:"COMPARTILHADA", porcentagemEnergia:"", medidorAgua:"", codigoMedidorAgua: genCodigo(), leituraInicialAgua:"", tipoCobrancaAgua:"COMPARTILHADA", porcentagemAgua:"", medidorGas:"", codigoMedidorGas: genCodigo(), leituraInicialGas:"", tipoCobrancaGas:"COMPARTILHADA", porcentagemGas:"", unidadeId:"", senha:"" });
   const [edit,setEdit]=useState<any>(null);
   const [editForm,setEditForm]=useState<any>({});
+  const [unidadesList,setUnidadesList]=useState<any[]>([]);
 
   async function load(){
     const res = await fetch("/api/gestao/inquilinos");
     if(res.ok) setLista(await res.json());
     else setLista(mock());
+    const ru = await fetch("/api/admin/unidades").then(r=>r.json()).catch(()=>[]);
+    if(Array.isArray(ru)) setUnidadesList(ru);
   }
   useEffect(()=>{ load(); },[]);
 
@@ -68,7 +71,13 @@ export default function InquilinosPage(){
           <label className="text-sm">E-mail<input type="email" value={form.email} onChange={e=>setForm({...form, email:e.target.value})} required className="mt-1 w-full border rounded-xl px-3 py-2" /></label>
           <label className="text-sm">Telefone<input value={form.telefone} onChange={e=>setForm({...form, telefone:e.target.value})} className="mt-1 w-full border rounded-xl px-3 py-2" /></label>
           <label className="text-sm md:col-span-2">Endereço<input value={form.endereco} onChange={e=>setForm({...form, endereco:e.target.value})} placeholder="Rua, nº, bloco" className="mt-1 w-full border rounded-xl px-3 py-2" /></label>
-          <label className="text-sm">Unidade ID<input value={form.unidadeId} onChange={e=>setForm({...form, unidadeId:e.target.value})} placeholder="bl-a-101" className="mt-1 w-full border rounded-xl px-3 py-2" /></label>
+          <label className="text-sm">Unidade ID (código do proprietário)
+            <select value={form.unidadeId} onChange={e=>setForm({...form, unidadeId:e.target.value})} required className="mt-1 w-full border rounded-xl px-3 py-2">
+              <option value="">Selecione</option>
+              {unidadesList.map((u:any)=><option key={u.id} value={u.id}>{u.identificacao} • {u.administradores?.[0]?.administrador?.nome||"sem vínculo"}</option>)}
+            </select>
+            {unidadesList.length===0 && <span className="text-[11px] text-rose-600">Nenhuma unidade — cadastre em Master → Unidades</span>}
+          </label>
 
           <div className="md:col-span-3 border rounded-2xl p-3 space-y-2 bg-zinc-50">
             <div className="text-xs font-bold">Medidor Energia Elétrica</div>
@@ -197,7 +206,12 @@ export default function InquilinosPage(){
               <label className="text-sm">Tipo Gás<select value={editForm.tipoCobrancaGas} onChange={e=>setEditForm({...editForm, tipoCobrancaGas:e.target.value})} className="mt-1 w-full border rounded-xl px-3 py-2"><option value="COMPARTILHADA">Compartilhada</option><option value="RATIO">Ratio</option><option value="PORCENTAGEM">Porcentagem</option></select></label>
               {editForm.tipoCobrancaGas==="PORCENTAGEM" && <label className="text-sm">% Gás<input type="number" step="0.1" value={editForm.porcentagemGas} onChange={e=>setEditForm({...editForm, porcentagemGas:e.target.value})} className="mt-1 w-full border rounded-xl px-3 py-2" /></label>}
               <label className="text-sm flex items-center gap-2 mt-6"><input type="checkbox" checked={editForm.ativo} onChange={e=>setEditForm({...editForm, ativo:e.target.checked})} /> Ativo</label>
-              <label className="text-sm">Unidade ID<input value={editForm.unidadeId} onChange={e=>setEditForm({...editForm, unidadeId:e.target.value})} className="mt-1 w-full border rounded-xl px-3 py-2" /></label>
+              <label className="text-sm">Unidade ID
+                <select value={editForm.unidadeId} onChange={e=>setEditForm({...editForm, unidadeId:e.target.value})} className="mt-1 w-full border rounded-xl px-3 py-2">
+                  <option value="">Selecione</option>
+                  {unidadesList.map((u:any)=><option key={u.id} value={u.id}>{u.identificacao}</option>)}
+                </select>
+              </label>
               <label className="text-sm">Nova senha<input type="password" value={editForm.novaSenha} onChange={e=>setEditForm({...editForm, novaSenha:e.target.value})} placeholder="deixe em branco" className="mt-1 w-full border rounded-xl px-3 py-2" /></label>
               <label className="text-sm">Medição inicial Energia<input type="number" value={editForm.leituraInicialEnergia} onChange={e=>setEditForm({...editForm, leituraInicialEnergia:e.target.value})} className="mt-1 w-full border rounded-xl px-3 py-2" /></label>
               <label className="text-sm">Medição inicial Água<input type="number" value={editForm.leituraInicialAgua} onChange={e=>setEditForm({...editForm, leituraInicialAgua:e.target.value})} className="mt-1 w-full border rounded-xl px-3 py-2" /></label>
