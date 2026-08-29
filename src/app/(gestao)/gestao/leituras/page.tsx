@@ -12,6 +12,7 @@ export default function LeiturasGestaoPage(){
   const [inquilinos,setInquilinos]=useState<any[]>([]);
   const [showCamera,setShowCamera]=useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
+  const [sucesso,setSucesso]=useState<any>(null);
 
   async function load(){
     const r = await fetch("/api/admin/leituras").then(res=>res.json()).catch(()=>[]);
@@ -23,19 +24,25 @@ export default function LeiturasGestaoPage(){
 
   function validarQR(){
     const scan = codigoScan.trim();
+    // detecta tipo pelo código escaneado
     const found = inquilinos.find((i:any)=> [i.codigoMedidorEnergia, i.codigoMedidorAgua, i.codigoMedidorGas, i.codigoMedidor].includes(scan));
     if(!found){ setScanOk(false); setScanMsg("Código não encontrado — verifique o QR do medidor."); return; }
-    const expected = form.tipo==="ENERGIA" ? (found.codigoMedidorEnergia|| found.codigoMedidor) : form.tipo==="AGUA" ? found.codigoMedidorAgua : found.codigoMedidorGas;
-    if(expected && expected!==scan){ setScanOk(false); setScanMsg(`QR de ${form.tipo} diverge — esperado ${expected} para ${found.nome}. Evita erro de tipo!`); return; }
-    if(!expected){ setScanOk(false); setScanMsg(`Inquilino ${found.nome} não possui medidor de ${form.tipo} cadastrado.`); return; }
+    let tipoDetectado: string | null = null;
+    if(scan===found.codigoMedidorEnergia || scan===found.codigoMedidor) tipoDetectado="ENERGIA";
+    else if(scan===found.codigoMedidorAgua) tipoDetectado="AGUA";
+    else if(scan===found.codigoMedidorGas) tipoDetectado="GAS";
+    const tipoFinal = tipoDetectado || form.tipo;
     const vinc = (found.unidades||[])[0];
-    if(vinc && vinc.unidadeId !== form.unidadeId && form.unidadeId){
-      setScanOk(false); setScanMsg(`QR válido para ${found.nome} (${scan}) mas unidade diverge (${vinc.unidadeId} ≠ ${form.unidadeId}) — erro evitado!`);
-      return;
-    }
-    if(!form.unidadeId && vinc) setForm({...form, unidadeId: vinc.unidadeId});
-    const medidorShow = form.tipo==="ENERGIA" ? found.medidorEnergia||found.medidor : form.tipo==="AGUA" ? found.medidorAgua : found.medidorGas;
-    setScanOk(true); setScanMsg(`✓ Validado ${form.tipo}: ${found.nome} • ${scan} • Medidor ${medidorShow||"-"} — leitura liberada. (rastreável)`);
+    const unidadeId = vinc?.unidadeId || form.unidadeId || "bl-a-101";
+    // busca última leitura para preencher anterior, tarifa, bandeira
+    const last = lista.filter((l:any)=> l.unidadeId===unidadeId && l.tipo===tipoFinal).sort((a:any,b:any)=> b.referencia.localeCompare(a.referencia))[0];
+    const leituraAnterior = last ? last.leituraAtual : 0;
+    const tarifa = last?.tarifa || (tipoFinal==="ENERGIA"?"0.92": tipoFinal==="AGUA"?"6.50":"7.20");
+    const bandeira = last?.bandeira || "VERDE";
+    setForm({ ...form, unidadeId, tipo: tipoFinal as any, leituraAnterior: String(leituraAnterior), tarifa: String(tarifa), bandeira });
+    setScanOk(true);
+    const medidorShow = tipoFinal==="ENERGIA" ? found.medidorEnergia||found.medidor : tipoFinal==="AGUA" ? found.medidorAgua : found.medidorGas;
+    setScanMsg(`✓ Validado ${tipoFinal}: ${found.nome} • ${scan} • Medidor ${medidorShow||"-"} — dados carregados. Digite apenas a leitura Atual.`);
   }
   async function abrirCamera(){
     setShowCamera(true);
@@ -54,11 +61,22 @@ export default function LeiturasGestaoPage(){
     e.preventDefault();
     if(codigoScan && scanOk===false){ alert("Valide o QR do medidor antes de salvar para evitar erro."); return; }
     if(codigoScan && !scanOk){ alert("Clique em Validar QR antes de salvar."); return; }
+    if(!form.leituraAtual){ alert("Informe a leitura Atual."); return; }
     const res = await fetch("/api/admin/leituras", { method:"POST", headers:{ "Content-Type":"application/json"}, body: JSON.stringify({ leituras: [{ unidadeId: form.unidadeId || "bl-a-101", tipo: form.tipo, referencia: form.referencia, leituraAnterior: Number(form.leituraAnterior), leituraAtual: Number(form.leituraAtual), tarifa: Number(form.tarifa), bandeira: form.bandeira }] }) });
-    if(res.ok) load();
+    if(res.ok){
+      const inq = inquilinos.find((i:any)=> [i.codigoMedidorEnergia, i.codigoMedidorAgua, i.codigoMedidorGas, i.codigoMedidor].includes(codigoScan) || i.unidades?.[0]?.unidadeId===form.unidadeId);
+      const idx = inquilinos.findIndex((i:any)=> i.id===inq?.id);
+      const proximo = inquilinos.length ? inquilinos[(idx+1)%inquilinos.length] : null;
+      setSucesso({ inquilino: inq?.nome||"Inquilino", unidadeId: form.unidadeId, tipo: form.tipo, leituraAtual: form.leituraAtual, proximo });
+      setForm({...form, leituraAnterior: form.leituraAtual, leituraAtual: ""});
+      setCodigoScan("");
+      setScanOk(null);
+      load();
+    }
     else {
       const consumo = Number(form.leituraAtual)-Number(form.leituraAnterior);
       setLista([{ id: Math.random().toString(36).slice(2), ...form, leituraAnterior: Number(form.leituraAnterior), leituraAtual: Number(form.leituraAtual), consumo, tarifa: Number(form.tarifa) }, ...lista]);
+      setSucesso({ inquilino: "Inquilino", unidadeId: form.unidadeId, tipo: form.tipo, leituraAtual: form.leituraAtual, proximo: inquilinos[0]||null });
     }
   }
   function iniciarEdicao(item:any){
@@ -100,17 +118,37 @@ export default function LeiturasGestaoPage(){
         )}
         {scanMsg && <div className={`text-xs rounded-xl px-3 py-2 ${scanOk?"bg-emerald-100 text-emerald-800":"bg-rose-100 text-rose-700"}`}>{scanMsg}</div>}
       </Card>
+      {sucesso && (
+        <Card className="bg-emerald-600 text-white border-emerald-700">
+          <h3 className="font-bold">✓ MEDIÇÃO DADOS DO INQUILINO FOI SALVO COM SUCESSO</h3>
+          <p className="text-sm mt-1 opacity-90">{sucesso.inquilino} • {sucesso.unidadeId} • {sucesso.tipo} • Leitura Atual {sucesso.leituraAtual}</p>
+          {sucesso.proximo && <p className="text-xs mt-2 opacity-80">Próximo medidor sugerido: <b>{sucesso.proximo.nome}</b> • {sucesso.proximo.codigoMedidorEnergia|| sucesso.proximo.codigoMedidor|| sucesso.proximo.codigoMedidorAgua} • Unidade {sucesso.proximo.unidades?.[0]?.unidadeId||""}</p>}
+          <div className="flex gap-2 mt-3">
+            <button onClick={()=>{
+              if(sucesso.proximo){
+                const cod = sucesso.proximo.codigoMedidorEnergia || sucesso.proximo.codigoMedidor || sucesso.proximo.codigoMedidorAgua || "";
+                setCodigoScan(cod);
+                setScanMsg("QR do próximo medidor carregado — clique Validar.");
+                setScanOk(null);
+              }
+              setSucesso(null);
+            }} className="flex-1 bg-white text-emerald-700 rounded-xl py-2 font-semibold text-sm">Próximo Medidor</button>
+            <button onClick={()=>{ setSucesso(null); setCodigoScan(""); setScanOk(null); setScanMsg(null); }} className="flex-1 bg-zinc-900 text-white rounded-xl py-2 text-sm">SAIR — Novo Registro</button>
+          </div>
+        </Card>
+      )}
       <Card className="space-y-3">
         <h3 className="font-semibold text-sm">2) Realizar leitura do inquilino</h3>
         <p className="text-xs text-zinc-500">{scanOk ? "QR validado — pode informar a medição." : "Valide o QR acima para liberar o salvamento."}</p>
         <form onSubmit={salvar} className="grid md:grid-cols-3 gap-3">
-          <label className="text-sm">Unidade ID<input value={form.unidadeId} onChange={e=>setForm({...form, unidadeId:e.target.value})} placeholder="bl-a-101" className="mt-1 w-full border rounded-xl px-3 py-2" /></label>
-          <label className="text-sm">Tipo<select value={form.tipo} onChange={e=>setForm({...form, tipo:e.target.value})} className="mt-1 w-full border rounded-xl px-3 py-2"><option>ENERGIA</option><option>AGUA</option><option>GAS</option></select></label>
-          <label className="text-sm">Referência<input value={form.referencia} onChange={e=>setForm({...form, referencia:e.target.value})} className="mt-1 w-full border rounded-xl px-3 py-2" /></label>
-          <label className="text-sm">Bandeira<select value={form.bandeira} onChange={e=>setForm({...form, bandeira:e.target.value})} className="mt-1 w-full border rounded-xl px-3 py-2"><option>VERDE</option><option>AMARELA</option><option>VERMELHA_P1</option><option>VERMELHA_P2</option></select></label>
-          <label className="text-sm">Anterior<input type="number" value={form.leituraAnterior} onChange={e=>setForm({...form, leituraAnterior:e.target.value})} className="mt-1 w-full border rounded-xl px-3 py-2" /></label>
-          <label className="text-sm">Atual<input type="number" value={form.leituraAtual} onChange={e=>setForm({...form, leituraAtual:e.target.value})} className="mt-1 w-full border rounded-xl px-3 py-2" /></label>
-          <label className="text-sm md:col-span-3">Tarifa R$<input type="number" step="0.0001" value={form.tarifa} onChange={e=>setForm({...form, tarifa:e.target.value})} className="mt-1 w-full border rounded-xl px-3 py-2" /></label>
+          <label className="text-sm">Unidade ID<input value={form.unidadeId} readOnly={!!scanOk} className={`mt-1 w-full border rounded-xl px-3 py-2 ${scanOk?"bg-zinc-100":""}`} placeholder="bl-a-101" onChange={e=>setForm({...form, unidadeId:e.target.value})} /></label>
+          <label className="text-sm">Tipo<select value={form.tipo} disabled={!!scanOk} className={`mt-1 w-full border rounded-xl px-3 py-2 ${scanOk?"bg-zinc-100":""}`} onChange={e=>setForm({...form, tipo:e.target.value as any})}><option>ENERGIA</option><option>AGUA</option><option>GAS</option></select></label>
+          <label className="text-sm">Referência<input value={form.referencia} readOnly={!!scanOk} className={`mt-1 w-full border rounded-xl px-3 py-2 ${scanOk?"bg-zinc-100":""}`} onChange={e=>setForm({...form, referencia:e.target.value})} /></label>
+          <label className="text-sm">Bandeira<select value={form.bandeira} disabled={!!scanOk} className={`mt-1 w-full border rounded-xl px-3 py-2 ${scanOk?"bg-zinc-100":""}`} onChange={e=>setForm({...form, bandeira:e.target.value})}><option>VERDE</option><option>AMARELA</option><option>VERMELHA_P1</option><option>VERMELHA_P2</option></select></label>
+          <label className="text-sm">Anterior (auto)<input type="number" value={form.leituraAnterior} readOnly={!!scanOk} className={`mt-1 w-full border rounded-xl px-3 py-2 ${scanOk?"bg-zinc-100":""}`} onChange={e=>setForm({...form, leituraAnterior:e.target.value})} /></label>
+          <label className="text-sm">Atual *<input type="number" value={form.leituraAtual} onChange={e=>setForm({...form, leituraAtual:e.target.value})} placeholder="digite somente Atual" className="mt-1 w-full border-2 border-emerald-500 rounded-xl px-3 py-2" autoFocus={!!scanOk} /></label>
+          <label className="text-sm md:col-span-3">Tarifa R$<input type="number" step="0.0001" value={form.tarifa} readOnly={!!scanOk} className={`mt-1 w-full border rounded-xl px-3 py-2 ${scanOk?"bg-zinc-100":""}`} onChange={e=>setForm({...form, tarifa:e.target.value})} /></label>
+          {scanOk && <div className="md:col-span-3 text-xs text-emerald-700 bg-emerald-50 rounded-xl px-3 py-2">✓ Dados lançados automaticamente via QR — unidade, tipo, tarifa, bandeira e leitura anterior. Digite apenas a leitura Atual e clique Validar e Salvar.</div>}
           <button disabled={scanOk===false || (!scanOk && !!codigoScan)} className={`md:col-span-3 rounded-2xl py-2.5 font-semibold ${scanOk ? "bg-emerald-700 text-white" : "bg-zinc-200 text-zinc-500"}`}>{scanOk ? "Salvar leitura validada" : "Valide o QR para salvar"}</button>
         </form>
       </Card>
