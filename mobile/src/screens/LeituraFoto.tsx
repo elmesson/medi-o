@@ -1,6 +1,8 @@
 import { useState, useRef } from 'react';
 import { Camera, CameraResultType, CameraSource } from '@capacitor/camera';
 import { uploadFoto } from '../lib/api';
+import QRScanner from '../components/QRScanner';
+import { validarCodigoMedidor } from '../lib/qr';
 
 export default function LeituraFoto() {
   const [preview, setPreview] = useState<string | null>(null);
@@ -8,6 +10,9 @@ export default function LeituraFoto() {
   const [loading, setLoading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [docName, setDocName] = useState<string | null>(null);
+  const [showQR, setShowQR] = useState(false);
+  const [codigoQR, setCodigoQR] = useState<string | null>(null);
+  const [validacao, setValidacao] = useState<string | null>(null);
 
   async function tirarFoto() {
     try {
@@ -55,10 +60,30 @@ export default function LeituraFoto() {
     catch(err:any){ alert('Falha upload documento: '+(err.message||err)); } finally { setLoading(false); e.target.value=''; }
   }
 
+  function onQRDetect(codigo: string){
+    setShowQR(false);
+    const v = validarCodigoMedidor(codigo);
+    if(!v.valido){ setValidacao(v.erro||'Código inválido'); return; }
+    setCodigoQR(codigo.trim().toUpperCase());
+    setValidacao(`✓ QR validado (${v.tipo}): ${codigo.trim().toUpperCase()}`);
+  }
+
   return (
     <div className="p-4 space-y-3">
       <h1 className="text-xl font-bold">Leitura por Foto do Medidor</h1>
-      <p className="text-sm text-zinc-500">Tire foto nítida do mostrador ou anexe documento (PDF, JPG, PNG). OCR + validação humana.</p>
+      <p className="text-sm text-zinc-500">Valide o QR da Energia Elétrica, depois tire foto do mostrador ou anexe documento.</p>
+      {/* QR Energia Elétrica */}
+      <div className="bg-white border rounded-2xl p-3 space-y-2">
+        <div className="flex items-center justify-between">
+          <span className="text-sm font-semibold">QR — Energia Elétrica</span>
+          {codigoQR ? <span className="text-xs bg-emerald-100 text-emerald-700 px-2 py-1 rounded-full font-mono">{codigoQR}</span> : <span className="text-xs text-zinc-500">não validado</span>}
+        </div>
+        {validacao && <div className={`text-xs px-2 py-1 rounded-xl ${validacao.startsWith('✓')?'bg-emerald-50 text-emerald-700':'bg-amber-50 text-amber-700'}`}>{validacao}</div>}
+        <button onClick={()=> setShowQR(true)} className="w-full bg-emerald-600 text-white rounded-xl py-2.5 text-sm font-semibold">🔍 Escanear QR Energia</button>
+        {codigoQR && <button onClick={()=>{setCodigoQR(null); setValidacao(null);}} className="w-full bg-zinc-100 rounded-xl py-2 text-xs">Limpar / escanear novamente</button>}
+      </div>
+      {showQR && <QRScanner onDetect={onQRDetect} onClose={()=> setShowQR(false)} />}
+
       <button onClick={tirarFoto} className="w-full bg-emerald-600 text-white rounded-2xl py-3 font-semibold">📷 Tirar foto do medidor</button>
       <div className="grid grid-cols-2 gap-2">
         <button onClick={escolherGaleria} className="bg-white border border-zinc-200 rounded-2xl py-3 font-semibold text-sm">🖼️ Galeria</button>
