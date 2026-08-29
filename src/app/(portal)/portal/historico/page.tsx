@@ -8,14 +8,31 @@ export default function HistoricoPage(){
   const [rows,setRows]=useState<any[]>(mockRows());
 
   async function exportar(fmt:"pdf"|"excel"|"csv"){
-    // chamada real: /api/relatorios/export?formato=pdf&ano=2026&tipo=ENERGIA
-    // fallback client-side: gera CSV
-    if (fmt==="csv"){
-      const csv = ["referencia,tipo,consumo,leituraAnterior,leituraAtual"].concat(rows.map(r=>`${r.referencia},${r.tipo},${r.consumo},${r.leituraAnterior},${r.leituraAtual}`)).join("\n");
-      const blob = new Blob([csv], { type: "text/csv" });
-      const url = URL.createObjectURL(blob); const a=document.createElement("a"); a.href=url; a.download=`historico-${ano}.csv`; a.click();
-    } else {
-      alert(`Exportação ${fmt.toUpperCase()} pronta no backend: GET /api/relatorios/export?formato=${fmt}&ano=${ano}&tipo=${tipo} (jsPDF + ExcelJS)`);
+    try {
+      const res = await fetch(`/api/relatorios/export?formato=${fmt}&ano=${ano}&tipo=${tipo}`);
+      if(!res.ok) throw new Error("Falha ao exportar");
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a=document.createElement("a");
+      a.href=url;
+      const ext = fmt==="pdf"?"pdf": fmt==="excel"?"xlsx":"csv";
+      const cd = res.headers.get("Content-Disposition");
+      // tenta extrair filename do header, senão usa padrão
+      let filename = `historico-${ano}-${tipo}.${ext}`;
+      if(cd){
+        const m = cd.match(/filename="?([^"]+)"?/);
+        if(m) filename = m[1];
+      }
+      a.download = filename;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch(e:any){
+      // fallback CSV client-side
+      if(fmt==="csv"){
+        const csv = ["referencia,tipo,consumo,leituraAnterior,leituraAtual"].concat(rows.map(r=>`${r.referencia},${r.tipo},${r.consumo},${r.leituraAnterior},${r.leituraAtual}`)).join("\n");
+        const blob = new Blob([csv], { type: "text/csv" });
+        const url = URL.createObjectURL(blob); const a=document.createElement("a"); a.href=url; a.download=`historico-${ano}.csv`; a.click();
+      } else alert(e.message||"Erro ao exportar");
     }
   }
 
