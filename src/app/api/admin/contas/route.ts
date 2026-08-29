@@ -18,7 +18,7 @@ async function requireGestao() {
 export async function GET() {
   const auth = await requireGestao();
   if (!auth) return NextResponse.json({ error: "Acesso Gestão requerido" }, { status: 403 });
-  const lista = await prisma.fatura.findMany({ orderBy: { referencia: "desc" }, take: 50, include: { unidade: true } });
+  const lista = await prisma.fatura.findMany({ orderBy: { referencia: "desc" }, take: 200, include: { unidade: true, inquilino: true } });
   return NextResponse.json(lista);
 }
 
@@ -50,22 +50,93 @@ export async function POST(req: NextRequest) {
     }
   }
   const pixConfig = await prisma.pixConfig.findFirst({ where: { ativo: true }, orderBy: { createdAt: "desc" } });
-  const txid = `pix-${referencia}-${tipo}-${unidadeId.slice(0,4)}-${Date.now()}`.slice(0,25);
-  const pixQrCode = pixConfig
-    ? geraPixPayload({ chave: pixConfig.chave, valor: Number(valorTotal), txid, nome: pixConfig.titularNome, cidade: pixConfig.titularCidade })
-    : `00020126580014BR.GOV.BCB.PIX0136fake-${valorTotal}520400005303986540${Number(valorTotal).toFixed(2)}5802BR5925ELMESSON`;
-  const fatura = await prisma.fatura.create({
-    data: {
-      unidadeId, tipo, referencia, valorTotal, criterioRateio, dataEmissao: dataEmissao ? new Date(dataEmissao) : new Date(), dataVencimento: new Date(dataVencimento), status: status || "ABERTA",
-      pixTxId: txid, pixQrCode,
-      valorDemonstrativo: valorDemonstrativo !== undefined && valorDemonstrativo !== "" ? valorDemonstrativo : null,
-      descricaoDemonstrativo: descricaoDemonstrativo || null,
-      exibirDemonstrativo: isCondo ? true : (exibirDemonstrativo !== undefined ? exibirDemonstrativo : true),
-      bandeira: bandeiraVal,
-    },
-    include: { unidade: true }
+  // Busca inquilinos da unidade para rateio por Tipo de cobrança
+  const unidadeComInqs = await prisma.unidade.findUnique({ where: { id: unidadeId }, include: { inquilinos: { include: { inquilino: true } } } });
+  const vinculos = unidadeComInqs?.inquilinos || [];
+  const leitura = ["ENERGIA","AGUA","GAS"].includes(tipo) ? await prisma.leitura.findUnique({ where: { unidadeId_tipo_referencia: { unidadeId, tipo, referencia } } }) : null;
+  const consumo = leitura ? Number(leitura.consumo) : null;
+  const tarifa = leitura ? (leitura.tarifa ? Number(leitura.tarifa) : null) : null;
+
+  // Se não tem inquilino ou é CONDOMINIO/TAXA_EXTRA: 1 fatura para unidade (mantém comportamento)
+  if (vinculos.length === 0 || isCondo || tipo === "TAXA_EXTRA") {
+    const txid = `pix-${referencia}-${tipo}-${unidadeId.slice(0,4)}-${Date.now()}`.slice(0,25);
+    const pixQrCode = pixConfig
+      ? geraPixPayload({ chave: pixConfig.chave, valor: Number(valorTotal), txid, nome: pixConfig.titularNome, cidade: pixConfig.titularCidade })
+      : `00020126580014BR.GOV.BCB.PIX0136fake-${valorTotal}520400005303986540${Number(valorTotal).toFixed(2)}5802BR5925ELMESSON`;
+    const fatura = await prisma.fatura.create({
+      data: {
+        unidadeId, tipo, referencia, valorTotal, criterioRateio, dataEmissao: dataEmissao ? new Date(dataEmissao) : new Date(), dataVencimento: new Date(dataVencimento), status: status || "ABERTA",
+        pixTxId: txid, pixQrCode,
+        valorDemonstrativo: valorDemonstrativo !== undefined && valorDemonstrativo !== "" ? valorDemonstrativo : null,
+        descricaoDemonstrativo: descricaoDemonstrativo || null,
+        exibirDemonstrativo: isCondo ? true : (exibirDemonstrativo !== undefined ? exibirDemonstrativo : true),
+        bandeira: bandeiraVal,
+      },
+      include: { unidade: true, inquilino: true }
+    });
+    return NextResponse.json(fatura);
+  }
+
+  // Rateio por Tipo de cobrança (RATIO/COMPARTILHADA/PORCENTAGEM) usando leitura
+  const total = Number(valorTotal);
+  // Mapeia tipoCobranca por inquilino para este tipo
+  const cobrancas = vinculos.map(v=>{
+    const inq = v.inquilino;
+    const tc = tipo==="ENERGIA" ? (inq.tipoCobrancaEnergia||"COMPARTILHADA") : tipo==="AGUA" ? (inq.tipoCobrancaAgua||"COMPARTILHADA") : (inq.tipoCobrancaGas||"COMPARTILHADA");
+    const pct = tipo==="ENERGIA" ? inq.porcentagemEnergia : tipo==="AGUA" ? inq.porcentagemAgua : inq.porcentagemGas;
+    return { vinculo: v, inq, tipoCobranca: tc, porcentagem: pct ? Number(pct) : null };
   });
-  return NextResponse.json(fatura);
+  // Separa PORCENTAGEM e demais
+  const porcList = cobrancas.filter(c=> c.tipoCobranca==="PORCENTAGEM" && c.porcentagem!=null);
+  const outros = cobrancas.filter(c=> c.tipoCobranca!=="PORCENTAGEM" || c.porcentagem==null);
+  const sumPorc = porcList.reduce((s,c)=> s + (c.porcentagem||0), 0);
+  if (sumPorc > 100.0001) return NextResponse.json({ error: `Soma das porcentagens (${sumPorc}%) excede 100% para ${tipo} na unidade ${unidadeComInqs?.identificacao}` }, { status: 400 });
+  const valorPorcTotal = total * (sumPorc/100);
+  const restante = total - valorPorcTotal;
+  const valorPorOutros = outros.length ? restante / outros.length : 0;
+
+  const criadas:any[] = [];
+  for (const c of cobrancas) {
+    let share:number;
+    let crit:string;
+    if (c.tipoCobranca==="PORCENTAGEM" && c.porcentagem!=null) {
+      share = total * (c.porcentagem/100);
+      crit = `PORCENTAGEM ${c.porcentagem}% • ${c.inq.nome} • Consumo ${consumo ?? "-"}${tarifa ? ` • Tarifa ${tarifa}`:""} • ${criterioRateio||""}`.trim();
+    } else if (c.tipoCobranca==="RATIO") {
+      // RATIO: proporcional ao consumo — como leitura é única por unidade, usa fração igual mas registra consumo
+      share = valorPorOutros;
+      crit = `RATIO • Consumo ${consumo ?? "-"} ${tipo==="ENERGIA"?"kWh":"m³"} • Tarifa ${tarifa ?? "-"} • ${criterioRateio||"Rateio proporcional"}`.trim();
+    } else {
+      // COMPARTILHADA
+      share = valorPorOutros;
+      crit = `COMPARTILHADA • ${vinculos.length} inquilino(s) • Consumo ${consumo ?? "-"} • ${criterioRateio||"Divisão igual"}`.trim();
+    }
+    share = Math.round(share*100)/100;
+    const txid = `pix-${referencia}-${tipo}-${c.inq.id.slice(0,4)}-${Date.now()}-${Math.random().toString(36).slice(2,4)}`.slice(0,25);
+    const pixQrCode = pixConfig
+      ? geraPixPayload({ chave: pixConfig.chave, valor: share, txid, nome: pixConfig.titularNome, cidade: pixConfig.titularCidade })
+      : `00020126580014BR.GOV.BCB.PIX0136fake-${share}520400005303986540${share.toFixed(2)}5802BR5925ELMESSON`;
+    const f = await prisma.fatura.create({
+      data: {
+        unidadeId, inquilinoId: c.inq.id, tipo, referencia,
+        valorTotal: share,
+        rateioValor: share,
+        criterioRateio: crit,
+        dataEmissao: dataEmissao ? new Date(dataEmissao) : new Date(),
+        dataVencimento: new Date(dataVencimento),
+        status: status || "ABERTA",
+        pixTxId: txid, pixQrCode,
+        valorDemonstrativo: exibirDemonstrativo===false && !isCondo ? null : share,
+        descricaoDemonstrativo: descricaoDemonstrativo || crit,
+        exibirDemonstrativo: isCondo ? true : (exibirDemonstrativo !== undefined ? exibirDemonstrativo : true),
+        bandeira: bandeiraVal,
+      },
+      include: { unidade: true, inquilino: true }
+    });
+    criadas.push(f);
+  }
+  // Retorna array quando gerou por inquilino, para frontend listar
+  return NextResponse.json(criadas.length===1 ? criadas[0] : criadas);
 }
 
 export async function PUT(req: NextRequest) {

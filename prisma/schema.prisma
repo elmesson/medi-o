@@ -45,6 +45,7 @@ model Inquilino {
   contestacoes     Contestacao[]
   chamados         Chamado[]
   comprovantes     ComprovantePix[]
+  faturas          Fatura[]
 }
 
 model Unidade {
@@ -129,6 +130,7 @@ model Leiturista {
 model Fatura {
   id               String       @id @default(cuid())
   unidadeId        String
+  inquilinoId      String?
   tipo             String
   referencia       String       // YYYY-MM
   valorTotal       Decimal
@@ -153,10 +155,12 @@ model Fatura {
   createdAt        DateTime     @default(now())
 
   unidade          Unidade      @relation(fields: [unidadeId], references: [id], onDelete: Cascade)
+  inquilino        Inquilino?   @relation(fields: [inquilinoId], references: [id], onDelete: SetNull)
   contestacoes     Contestacao[]
   comprovantes     ComprovantePix[]
 
   @@index([unidadeId, referencia])
+  @@index([inquilinoId])
 }
 
 model ComprovantePix {
