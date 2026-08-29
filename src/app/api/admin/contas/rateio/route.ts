@@ -63,20 +63,31 @@ export async function POST(req: NextRequest) {
 
   if (tipo==="CONDOMINIO" || tipo==="TAXA_EXTRA") return NextResponse.json({ error: "CONDOMINIO/TAXA_EXTRA não usa rateio por inquilino" }, { status: 400 });
 
-  // exige leitura
+  // leitura opcional para rateio — se não houver, divide mesmo assim (avisa)
   const leitura = await prisma.leitura.findUnique({ where: { unidadeId_tipo_referencia: { unidadeId, tipo, referencia } } });
-  if (!leitura) return NextResponse.json({ error: `Leitura pendente para ${tipo} ${referencia} unidade ${unidadeId}`, code:"LEITURA_PENDENTE" }, { status: 400 });
 
   const unidadeComInqs = await prisma.unidade.findUnique({ where: { id: unidadeId }, include: { inquilinos: { include: { inquilino: true } } } });
   const vinculos = unidadeComInqs?.inquilinos || [];
-  if (vinculos.length===0) return NextResponse.json({ error: "Unidade sem inquilinos para rateio" }, { status: 400 });
-  if (vinculos.length===1) return NextResponse.json({ error: "Apenas 1 inquilino, não precisa rateio", fatura: faturaBase }, { status: 400 });
+  if (vinculos.length===0) return NextResponse.json({ error: `Unidade ${unidadeComInqs?.identificacao||unidadeId} sem inquilinos. Cadastre em Gestão → Inquilinos e vincule à unidade.`, inquilinos: [] }, { status: 400 });
+  if (vinculos.length===1) {
+    // 1 inquilino: apenas vincula fatura ao inquilino com valor integral (não divide)
+    const unico = vinculos[0].inquilino;
+    await prisma.fatura.deleteMany({ where: { unidadeId, referencia, tipo } });
+    const pixConfig1 = await prisma.pixConfig.findFirst({ where: { ativo: true }, orderBy: { createdAt: "desc" } });
+    const txid1 = `pix-${referencia}-${tipo}-${unico.id.slice(0,4)}-${Date.now()}`.slice(0,25);
+    const pixQrCode1 = pixConfig1 ? geraPixPayload({ chave: pixConfig1.chave, valor: total, txid: txid1, nome: pixConfig1.titularNome, cidade: pixConfig1.titularCidade }) : `00020126580014BR.GOV.BCB.PIX0136fake-${total}520400005303986540${total.toFixed(2)}5802BR5925ELMESSON`;
+    const f1 = await prisma.fatura.create({
+      data: { unidadeId, inquilinoId: unico.id, tipo, referencia, valorTotal: total, rateioValor: total, criterioRateio: `${unico.tipoCobrancaEnergia||"COMPARTILHADA"} • ${unico.nome} • único inquilino • ${criterioRateio||""}`, dataEmissao, dataVencimento, status: "ABERTA", pixTxId: txid1, pixQrCode: pixQrCode1, valorDemonstrativo: total, descricaoDemonstrativo: criterioRateio, exibirDemonstrativo: exibirDemonstrativo ?? true, bandeira },
+      include: { unidade: true, inquilino: true }
+    });
+    return NextResponse.json({ ok:true, totalOriginal: total, criadas:[f1], rateio:[{ nome: unico.nome, tipoCobranca: unico.tipoCobrancaEnergia||"COMPARTILHADA", valor: total }], aviso: leitura?null:`Sem leitura ${referencia} — rateio sem consumo (apenas vínculo)` });
+  }
 
   // deleta faturas antigas do grupo (para recriar com rateio correto)
   await prisma.fatura.deleteMany({ where: { unidadeId, referencia, tipo } });
 
-  const consumo = Number(leitura.consumo);
-  const tarifa = leitura.tarifa ? Number(leitura.tarifa) : null;
+  const consumo = leitura ? Number(leitura.consumo) : null;
+  const tarifa = leitura?.tarifa ? Number(leitura.tarifa) : null;
   const pixConfig = await prisma.pixConfig.findFirst({ where: { ativo: true }, orderBy: { createdAt: "desc" } });
 
   const cobrancas = vinculos.map(v=>{

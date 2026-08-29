@@ -71,13 +71,17 @@ export default function ContasPage(){
     setLista(lista.filter(x=>x.id!==id));
   }
   async function recalcularRateio(faturaId:string){
-    if(!confirm("Recalcular rateio por Tipo de cobrança (RATIO/COMPARTILHADA/PORCENTAGEM)? A fatura integral será dividida entre os inquilinos da unidade.")) return;
+    if(!confirm("Recalcular rateio por Tipo de cobrança (RATIO/COMPARTILHADA/PORCENTAGEM)? A fatura integral R$ 680 será dividida entre os inquilinos da unidade conforme cadastro em Gestão → Inquilinos.")) return;
     const res = await fetch("/api/admin/contas/rateio", { method:"POST", headers:{ "Content-Type":"application/json"}, body: JSON.stringify({ faturaId }) });
     const j = await res.json().catch(()=>({}));
     if(res.ok){
-      alert(`Rateio recalculado: R$ ${j.totalOriginal} dividido entre ${j.criadas.length} inquilino(s):\n` + j.rateio.map((r:any)=> `${r.nome} (${r.tipoCobranca}${r.porcentagem?` ${r.porcentagem}%`:""}): ${brl(r.valor)}`).join("\n"));
+      alert(`Rateio recalculado: ${brl(j.totalOriginal)} dividido entre ${j.criadas.length} inquilino(s):\n` + j.rateio.map((r:any)=> `${r.nome} (${r.tipoCobranca}${r.porcentagem?` ${r.porcentagem}%`:""}): ${brl(r.valor)}`).join("\n") + (j.aviso?`\n\nAviso: ${j.aviso}`:""));
       load();
-    } else alert(j.error||"Falha ao recalcular");
+    } else {
+      const det = j.inquilinos ? `\n\nInquilinos: ${j.inquilinos.map((i:any)=> i.nome).join(", ")||"nenhum"}` : "";
+      const code = j.code ? `\nCode: ${j.code}` : "";
+      alert((j.error||"Falha ao recalcular") + det + code + "\n\nVerifique: 1) Unidade tem inquilinos vinculados em Gestão → Inquilinos, 2) Leitura da referência existe em Gestão → Leituras (se não, será dividido sem consumo).");
+    }
   }
 
   return (
