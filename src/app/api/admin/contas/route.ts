@@ -29,6 +29,26 @@ export async function POST(req: NextRequest) {
   if (!unidadeId || !tipo || !referencia || !valorTotal) return NextResponse.json({ error: "unidadeId, tipo, referencia, valorTotal obrigatórios" }, { status: 400 });
   const isCondo = tipo === "CONDOMINIO";
   const bandeiraVal = tipo === "ENERGIA" ? (bandeira || null) : null;
+  // Regra: para ENERGIA/AGUA/GAS/TAXA_EXTRA o sistema só pode faturar após leitura
+  // Identifica todos inquilinos da unidade e exige leitura unidadeId+tipo+referencia
+  if (["ENERGIA","AGUA","GAS"].includes(tipo)) {
+    const leitura = await prisma.leitura.findUnique({ where: { unidadeId_tipo_referencia: { unidadeId, tipo, referencia } } });
+    if (!leitura) {
+      const unidade = await prisma.unidade.findUnique({ where: { id: unidadeId }, include: { inquilinos: { include: { inquilino: true } } } });
+      const inquilinos = unidade?.inquilinos?.map(v=> ({
+        id: v.inquilino.id, nome: v.inquilino.nome,
+        medidor: tipo==="ENERGIA" ? v.inquilino.codigoMedidorEnergia : tipo==="AGUA" ? v.inquilino.codigoMedidorAgua : v.inquilino.codigoMedidorGas,
+        tipoCobranca: tipo==="ENERGIA" ? v.inquilino.tipoCobrancaEnergia : tipo==="AGUA" ? v.inquilino.tipoCobrancaAgua : v.inquilino.tipoCobrancaGas,
+      })) || [];
+      return NextResponse.json({
+        error: `Leitura pendente: realize a leitura de ${tipo} da unidade ${unidade?.identificacao || unidadeId} referência ${referencia} antes de gerar fatura. O sistema não tem inteligência para calcular valor sem consumo.`,
+        code: "LEITURA_PENDENTE",
+        unidade: unidade ? { id: unidade.id, identificacao: unidade.identificacao } : null,
+        inquilinos,
+        referencia, tipo, unidadeId
+      }, { status: 400 });
+    }
+  }
   const pixConfig = await prisma.pixConfig.findFirst({ where: { ativo: true }, orderBy: { createdAt: "desc" } });
   const txid = `pix-${referencia}-${tipo}-${unidadeId.slice(0,4)}-${Date.now()}`.slice(0,25);
   const pixQrCode = pixConfig

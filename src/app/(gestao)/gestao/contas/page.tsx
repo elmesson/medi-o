@@ -30,15 +30,16 @@ export default function ContasPage(){
   }
   useEffect(()=>{ load(); },[]);
 
+  const [avisoLeitura,setAvisoLeitura]=useState<any>(null);
   async function criar(e: React.FormEvent){
     e.preventDefault();
+    setAvisoLeitura(null);
     const selUnidade = unidades.find((u:any)=> u.id===form.unidadeId);
     const payload:any = { ...form, valorTotal: Number(form.valorTotal), dataEmissao: new Date().toISOString(), dataVencimento: new Date(form.dataVencimento).toISOString(), valorDemonstrativo: form.valorDemonstrativo? Number(form.valorDemonstrativo): null, bandeira: form.tipo==="ENERGIA" ? form.bandeira : null };
     if(form.tipo==="CONDOMINIO") payload.exibirDemonstrativo = true;
     const res = await fetch("/api/admin/contas", { method:"POST", headers:{ "Content-Type":"application/json"}, body: JSON.stringify(payload) });
     if(res.ok) {
       const created = await res.json();
-      // garante objeto Unidade idêntico ao Unidade ID selecionado
       const withUnidade = created.unidade ? created : { ...created, unidade: selUnidade ? { id: selUnidade.id, identificacao: selUnidade.identificacao } : { id: form.unidadeId, identificacao: form.unidadeId } };
       setLista([withUnidade, ...lista]);
       setForm({ unidadeId:"", tipo:"ENERGIA", referencia: new Date().toISOString().slice(0,7), valorTotal:"", criterioRateio:"Medição individual", dataVencimento: new Date().toISOString().slice(0,10), status:"ABERTA", valorDemonstrativo:"", descricaoDemonstrativo:"", exibirDemonstrativo: true, bandeira:"VERDE" });
@@ -46,7 +47,9 @@ export default function ContasPage(){
     }
     else {
       const err = await res.json().catch(()=>({error:'Erro'}));
-      alert(err.error||'Falha ao cadastrar conta');
+      if(err.code==="LEITURA_PENDENTE"){
+        setAvisoLeitura(err);
+      } else alert(err.error||'Falha ao cadastrar conta');
     }
   }
   function iniciarEdicao(item:any){
@@ -94,6 +97,25 @@ export default function ContasPage(){
           {form.tipo!=="CONDOMINIO" ? <label className="text-sm flex items-center gap-2 bg-zinc-50 rounded-xl px-3 py-2"><input type="checkbox" checked={form.exibirDemonstrativo} onChange={e=>setForm({...form, exibirDemonstrativo:e.target.checked})} /> Exibir no demonstrativo PDF</label> : <div className="text-xs text-emerald-700 bg-emerald-50 rounded-xl px-3 py-2">Condomínio: sempre exibe Valor e Descrição</div>}
           <button className="md:col-span-3 bg-emerald-700 text-white rounded-2xl py-2.5 font-semibold">Cadastrar conta</button>
         </form>
+        {avisoLeitura && (
+          <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 space-y-2">
+            <div className="font-bold text-amber-800 text-sm">⚠️ Leitura pendente</div>
+            <div className="text-sm text-amber-900">{avisoLeitura.error}</div>
+            <div className="text-xs text-zinc-700">Unidade <b>{avisoLeitura.unidade?.identificacao}</b> — Tipo <b>{avisoLeitura.tipo}</b> — Referência <b>{avisoLeitura.referencia}</b></div>
+            {avisoLeitura.inquilinos?.length>0 && (
+              <div className="bg-white rounded-xl p-2">
+                <div className="text-xs font-semibold mb-1">Inquilinos nesta unidade ({avisoLeitura.inquilinos.length}):</div>
+                <table className="w-full text-xs"><thead><tr className="text-zinc-500"><th className="text-left">Inquilino</th><th>Medidor</th><th>Tipo cobrança</th></tr></thead><tbody>{avisoLeitura.inquilinos.map((inq:any)=><tr key={inq.id} className="border-t"><td>{inq.nome}</td><td className="font-mono">{inq.medidor||'—'}</td><td>{inq.tipoCobranca||'COMPARTILHADA'}</td></tr>)}</tbody></table>
+                <div className="text-[11px] text-zinc-500 mt-1">Após realizar todas as leituras com o Tipo de cobrança específico (RATIO/COMPARTILHADA/PORCENTAGEM), o sistema calculará automaticamente o rateio e gerará as faturas.</div>
+              </div>
+            )}
+            {avisoLeitura.inquilinos?.length===0 && <div className="text-xs text-zinc-600">Nenhum inquilino vinculado a esta unidade. Cadastre inquilinos em Gestão → Inquilinos antes de faturar.</div>}
+            <div className="flex gap-2">
+              <a href="/gestao/leituras" className="bg-emerald-700 text-white rounded-xl px-4 py-2 text-sm text-center flex-1">Ir para Leituras</a>
+              <button onClick={()=> setAvisoLeitura(null)} className="border rounded-xl px-4 py-2 text-sm flex-1">Fechar</button>
+            </div>
+          </div>
+        )}
       </Card>
 
       <Card>
