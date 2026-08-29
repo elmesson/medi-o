@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { cookies } from "next/headers";
 import * as jose from "jose";
+import { geraPixPayload } from "@/lib/pix/emv";
 
 async function requireGestao() {
   const token = cookies().get("admin_access_token")?.value || cookies().get("access_token")?.value;
@@ -27,10 +28,15 @@ export async function POST(req: NextRequest) {
   const { unidadeId, tipo, referencia, valorTotal, criterioRateio, dataEmissao, dataVencimento, status, valorDemonstrativo, descricaoDemonstrativo, exibirDemonstrativo } = await req.json();
   if (!unidadeId || !tipo || !referencia || !valorTotal) return NextResponse.json({ error: "unidadeId, tipo, referencia, valorTotal obrigatórios" }, { status: 400 });
   const isCondo = tipo === "CONDOMINIO";
+  const pixConfig = await prisma.pixConfig.findFirst({ where: { ativo: true }, orderBy: { createdAt: "desc" } });
+  const txid = `pix-${referencia}-${tipo}-${unidadeId.slice(0,4)}-${Date.now()}`.slice(0,25);
+  const pixQrCode = pixConfig
+    ? geraPixPayload({ chave: pixConfig.chave, valor: Number(valorTotal), txid, nome: pixConfig.titularNome, cidade: pixConfig.titularCidade })
+    : `00020126580014BR.GOV.BCB.PIX0136fake-${valorTotal}520400005303986540${Number(valorTotal).toFixed(2)}5802BR5925ELMESSON`;
   const fatura = await prisma.fatura.create({
     data: {
       unidadeId, tipo, referencia, valorTotal, criterioRateio, dataEmissao: dataEmissao ? new Date(dataEmissao) : new Date(), dataVencimento: new Date(dataVencimento), status: status || "ABERTA",
-      pixTxId: `pix-${referencia}-${tipo}-${unidadeId.slice(0,4)}-${Date.now()}`, pixQrCode: `00020126580014BR.GOV.BCB.PIX0136fake-${valorTotal}520400005303986540${Number(valorTotal).toFixed(2)}5802BR5925ELMESSON`,
+      pixTxId: txid, pixQrCode,
       valorDemonstrativo: valorDemonstrativo !== undefined && valorDemonstrativo !== "" ? valorDemonstrativo : null,
       descricaoDemonstrativo: descricaoDemonstrativo || null,
       exibirDemonstrativo: isCondo ? true : (exibirDemonstrativo !== undefined ? exibirDemonstrativo : true),

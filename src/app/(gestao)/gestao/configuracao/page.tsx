@@ -36,7 +36,11 @@ export default function ConfiguracaoPage(){
 
   return (
     <div className="space-y-4">
-      <h1 className="text-xl font-bold">Configuração — Leituristas</h1>
+      <div className="flex items-center gap-2">
+        <h1 className="text-xl font-bold">Configuração</h1>
+        <span className="bg-zinc-900 text-white rounded-full px-3 py-1 text-xs">Leituristas</span>
+        <a href="/gestao/configuracao/pix" className="bg-white border rounded-full px-3 py-1 text-xs">Pix BCB</a>
+      </div>
       <p className="text-xs text-zinc-500">Crie logins exclusivos para leiturista (acesso somente à tela Leitura, com rastreabilidade e scanner QR via câmera).</p>
 
       <Card className="space-y-3">

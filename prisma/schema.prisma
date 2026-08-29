@@ -262,6 +262,7 @@ model Administrador {
   updatedAt       DateTime  @updatedAt
   unidades        AdministradorUnidade[]
   sessoes         SessaoAdmin[]
+  pixConfigs      PixConfig[]
 }
 
 model AdministradorUnidade {
@@ -303,6 +304,24 @@ model CondominioRateio {
   despesa      CondominioDespesa @relation(fields: [despesaId], references: [id], onDelete: Cascade)
   unidade      Unidade           @relation(fields: [unidadeId], references: [id], onDelete: Cascade)
   @@unique([despesaId, unidadeId])
+}
+
+// ============ PIX CONFIG - BCB (real, por proprietário) ============
+model PixConfig {
+  id            String   @id @default(cuid())
+  // vínculo opcional por proprietário/admin ou global
+  administradorId String?
+  tipoChave     String   // CPF | CNPJ | EMAIL | TELEFONE | ALEATORIA
+  chave         String   @unique // chave PIX real conforme BCB
+  banco         String?  // ex: 001 Banco do Brasil, 104 Caixa
+  agencia       String?
+  conta         String?
+  titularNome   String
+  titularCidade String   @default("SAO PAULO")
+  ativo         Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  administrador Administrador? @relation(fields: [administradorId], references: [id], onDelete: SetNull)
 }
 
 // ============ SESSAO ============

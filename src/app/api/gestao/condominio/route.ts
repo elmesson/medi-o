@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { cookies } from "next/headers";
 import * as jose from "jose";
+import { geraPixPayload } from "@/lib/pix/emv";
 
 async function requireGestao() {
   const token = cookies().get("admin_access_token")?.value || cookies().get("access_token")?.value;
@@ -42,6 +43,7 @@ export async function POST(req: NextRequest) {
   const unidades = await prisma.unidade.findMany();
   const totalUnidades = unidades.length || 1;
   const totalFracao = unidades.reduce((s,u)=> s + Number(u.fracaoIdeal||1), 0) || totalUnidades;
+  const pixConfig = await prisma.pixConfig.findFirst({ where: { ativo: true }, orderBy: { createdAt: "desc" } });
 
   for (const u of unidades) {
     let share = 0;
@@ -74,12 +76,16 @@ export async function POST(req: NextRequest) {
         }
       });
     } else {
+      const txid = `pix-cond-${fRef}-${u.id.slice(0,4)}-${Date.now()}`.slice(0,25);
+      const pixQrCode = pixConfig
+        ? geraPixPayload({ chave: pixConfig.chave, valor: Number(share), txid, nome: pixConfig.titularNome, cidade: pixConfig.titularCidade })
+        : `00020126580014BR.GOV.BCB.PIX0136cond-${share}520400005303986540${share.toFixed(2)}5802BR`;
       await prisma.fatura.create({
         data: {
           unidadeId: u.id, tipo: "CONDOMINIO", referencia: fRef,
           valorTotal: share, rateioValor: share, criterioRateio: descRateio,
           dataEmissao: new Date(), dataVencimento: new Date(vencimento), status: "ABERTA",
-          pixTxId: `pix-cond-${fRef}-${u.id.slice(0,4)}-${Date.now()}-${Math.random().toString(36).slice(2,4)}`, pixQrCode: `00020126580014BR.GOV.BCB.PIX0136cond-${share}520400005303986540${share.toFixed(2)}5802BR`
+          pixTxId: txid, pixQrCode
         }
       });
     }
