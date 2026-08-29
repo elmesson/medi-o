@@ -1,5 +1,14 @@
+"use client";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
+  const isActive = (href: string) => pathname === href || pathname.startsWith(href + "/");
+  const nav = [
+    { href: "/admin", label: "Dashboard" },
+    { href: "/admin/administradores", label: "Administradores" },
+    { href: "/admin/unidades", label: "Unidades" },
+  ];
   return (
     <div className="min-h-screen bg-zinc-50">
       <header className="bg-zinc-900 text-white px-4 py-3 flex items-center justify-between">
@@ -8,9 +17,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           <b>Elmesson Admin</b><span className="text-xs opacity-60">Master / Gestão</span>
         </div>
         <nav className="flex gap-2 text-xs">
-          <Link href="/admin" className="bg-white/10 hover:bg-white/20 rounded-full px-3 py-1">Dashboard</Link>
-          <Link href="/admin/administradores" className="bg-white/10 hover:bg-white/20 rounded-full px-3 py-1">Administradores</Link>
-          <Link href="/admin/unidades" className="bg-emerald-500 hover:bg-emerald-600 rounded-full px-3 py-1 font-semibold">Unidades</Link>
+          {nav.map(n=>{
+            const active = isActive(n.href);
+            return <Link key={n.href} href={n.href} className={`rounded-full px-3 py-1 ${active?"bg-emerald-500 text-white font-semibold":"bg-white/10 hover:bg-white/20"}`}>{n.label}</Link>;
+          })}
           <Link href="/admin/login" className="bg-white text-zinc-900 rounded-full px-3 py-1">Login Master</Link>
         </nav>
       </header>

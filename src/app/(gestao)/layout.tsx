@@ -1,5 +1,17 @@
+"use client";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 export default function GestaoLayout({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
+  const isActive = (href: string) => pathname === href || pathname.startsWith(href + "/") || pathname === href;
+  const nav = [
+    { href: "/gestao", label: "Dashboard" },
+    { href: "/gestao/contas", label: "Contas" },
+    { href: "/gestao/condominio", label: "Condomínio" },
+    { href: "/gestao/leituras", label: "Leitura" },
+    { href: "/gestao/inquilinos", label: "Inquilinos" },
+    { href: "/gestao/configuracao", label: "Configuração" },
+  ];
   return (
     <div className="min-h-screen bg-zinc-50">
       <header className="bg-emerald-700 text-white px-4 py-3 flex items-center justify-between">
@@ -8,12 +20,10 @@ export default function GestaoLayout({ children }: { children: React.ReactNode }
           <b>Gestão</b><span className="text-xs opacity-80">Energia • Água • Gás • Condomínio</span>
         </div>
         <nav className="flex gap-2 text-xs">
-          <Link href="/gestao" className="bg-white/15 rounded-full px-3 py-1">Dashboard</Link>
-          <Link href="/gestao/contas" className="bg-white/15 rounded-full px-3 py-1">Contas</Link>
-          <Link href="/gestao/condominio" className="bg-white/15 rounded-full px-3 py-1">Condomínio</Link>
-          <Link href="/gestao/leituras" className="bg-white/15 rounded-full px-3 py-1">Leitura</Link>
-          <Link href="/gestao/inquilinos" className="bg-white/15 rounded-full px-3 py-1">Inquilinos</Link>
-          <Link href="/gestao/configuracao" className="bg-white text-emerald-700 rounded-full px-3 py-1 font-semibold">Configuração</Link>
+          {nav.map(n=>{
+            const active = isActive(n.href);
+            return <Link key={n.href} href={n.href} className={`rounded-full px-3 py-1 ${active?"bg-white text-emerald-700 font-semibold":"bg-white/15"}`}>{n.label}</Link>;
+          })}
           <Link href="/login" className="bg-white/10 rounded-full px-3 py-1">Sair</Link>
         </nav>
       </header>

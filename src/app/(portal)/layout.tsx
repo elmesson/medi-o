@@ -1,4 +1,6 @@
+"use client";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { Home, Gauge, Receipt, History, QrCode, MessageCircle, AlertTriangle, Bell, User, TrendingUp } from "lucide-react";
 
 const nav = [
@@ -15,6 +17,8 @@ const nav = [
 ];
 
 export default function PortalLayout({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
+  const isActive = (href: string) => pathname === href || (href !== "/portal" && pathname.startsWith(href));
   return (
     <div className="min-h-screen bg-zinc-50">
       <header className="sticky top-0 z-10 bg-white border-b border-zinc-200">
@@ -33,21 +37,27 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
         {/* Mobile nav as horizontal scroll */}
         <nav className="lg:hidden overflow-x-auto">
           <div className="flex gap-2 pb-2">
-            {nav.map(n=>(
-              <Link key={n.href} href={n.href} className="flex items-center gap-1.5 bg-white border border-zinc-200 rounded-2xl px-3 py-2 text-sm whitespace-nowrap">
-                <n.icon className="w-4 h-4" />{n.label}
-              </Link>
-            ))}
+            {nav.map(n=>{
+              const active = isActive(n.href);
+              return (
+                <Link key={n.href} href={n.href} className={`flex items-center gap-1.5 rounded-2xl px-3 py-2 text-sm whitespace-nowrap border ${active?"bg-emerald-600 text-white border-emerald-600":"bg-white border-zinc-200"}`}>
+                  <n.icon className="w-4 h-4" />{n.label}
+                </Link>
+              );
+            })}
           </div>
         </nav>
         {/* Desktop sidebar */}
         <aside className="hidden lg:block">
           <div className="bg-white rounded-3xl border border-zinc-100 p-3 sticky top-[68px] space-y-1">
-            {nav.map(n=>(
-              <Link key={n.href} href={n.href} className="flex items-center gap-2 px-3 py-2.5 rounded-2xl hover:bg-zinc-50 text-sm font-medium">
-                <n.icon className="w-4 h-4" />{n.label}
-              </Link>
-            ))}
+            {nav.map(n=>{
+              const active = isActive(n.href);
+              return (
+                <Link key={n.href} href={n.href} className={`flex items-center gap-2 px-3 py-2.5 rounded-2xl text-sm font-medium ${active?"bg-emerald-600 text-white":"hover:bg-zinc-50"}`}>
+                  <n.icon className="w-4 h-4" />{n.label}
+                </Link>
+              );
+            })}
             <div className="pt-3 mt-3 border-t border-zinc-100 text-xs text-muted px-3">
               Acesso restrito às unidades vinculadas. Sessão com JWT + Refresh + MFA.
             </div>
