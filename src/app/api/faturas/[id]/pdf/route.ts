@@ -52,6 +52,10 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
   const venc = new Date(fatura.dataVencimento).toLocaleDateString("pt-BR");
   const emissao = new Date(fatura.dataEmissao).toLocaleDateString("pt-BR");
   const ref = fatura.referencia;
+  const exibirDemo = (fatura as any).exibirDemonstrativo !== false || fatura.tipo === "CONDOMINIO";
+  const valorDemoNum = (fatura as any).valorDemonstrativo != null ? Number((fatura as any).valorDemonstrativo) : valorTotal;
+  const valorDemoStr = exibirDemo ? valorDemoNum.toLocaleString("pt-BR", { style: "currency", currency: "BRL" }) : "—";
+  const descDemo = exibirDemo ? ((fatura as any).descricaoDemonstrativo || fatura.criterioRateio || "Medição individual") : "Demonstrativo desativado pelo proprietário";
 
   const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
   const W = doc.internal.pageSize.getWidth();
@@ -152,10 +156,10 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
     startY: cardY + 32,
     head: [["Descrição", "Referência", "Critério / Rateio", "Valor"]],
     body: [
-      [fatura.tipo, ref, fatura.criterioRateio || "Medição individual", valorTotal.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })],
-      ...(fatura.rateioValor ? [["Rateio condomínio", ref, fatura.criterioRateio || "-", Number(fatura.rateioValor).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })]] : []),
+      [fatura.tipo, ref, descDemo, valorDemoStr],
+      ...(fatura.rateioValor && exibirDemo ? [["Rateio condomínio", ref, fatura.criterioRateio || "-", Number(fatura.rateioValor).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })]] : []),
     ],
-    foot: [["", "", "TOTAL", valorTotal.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })]],
+    foot: [["", "", "TOTAL", exibirDemo ? valorDemoStr : "—"]],
     theme: "grid",
     headStyles: { fillColor: [15, 23, 42], textColor: 255, fontStyle: "bold", fontSize: 8 },
     bodyStyles: { fontSize: 8, textColor: [15, 23, 42] },
@@ -178,7 +182,8 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
   doc.setFont("helvetica", "normal");
   doc.setTextColor(15, 23, 42);
   doc.setFontSize(7);
-  doc.text(`Critério: ${fatura.criterioRateio || "Medição individual"}   •   Rateio: ${fatura.rateioValor ? Number(fatura.rateioValor).toLocaleString("pt-BR", { style: "currency", currency: "BRL" }) : "-"}   •   Status: ${fatura.status}`, 16, finalY + 10);
+  if (exibirDemo) doc.text(`Critério: ${descDemo}   •   Rateio: ${fatura.rateioValor ? Number(fatura.rateioValor).toLocaleString("pt-BR", { style: "currency", currency: "BRL" }) : "-"}   •   Status: ${fatura.status}   •   Valor: ${valorDemoStr}`, 16, finalY + 10);
+  else doc.text(`Demonstrativo desativado pelo proprietário  •  Status: ${fatura.status}  •  Condomínio sempre exibe Valor e Descrição`, 16, finalY + 10);
   finalY += 22;
 
   // ===== INQUILINO / MEDIDORES (ENERGIA, ÁGUA, GÁS) QRCODE / PROPRIETÁRIO / LEITURA =====

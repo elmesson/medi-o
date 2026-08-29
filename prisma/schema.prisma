@@ -128,6 +128,10 @@ model Fatura {
   pixTxId          String?      @unique
   pixQrCode        String?      // payload copia e cola
   pixQrImage       String?      // base64 ou url
+  // Demonstrativo (proprietário controla para AGUA/GAS/ENERGIA)
+  valorDemonstrativo   Decimal?
+  descricaoDemonstrativo String?
+  exibirDemonstrativo  Boolean @default(true) // AGUA/GAS/ENERGIA toggle; CONDOMINIO sempre true
   createdAt        DateTime     @default(now())
 
   unidade          Unidade      @relation(fields: [unidadeId], references: [id], onDelete: Cascade)
