@@ -10,9 +10,10 @@ export default function GestaoLayout({ children }: { children: React.ReactNode }
         <nav className="flex gap-2 text-xs">
           <Link href="/gestao" className="bg-white/15 rounded-full px-3 py-1">Dashboard</Link>
           <Link href="/gestao/contas" className="bg-white/15 rounded-full px-3 py-1">Contas</Link>
-          <Link href="/gestao/condominio" className="bg-white text-emerald-700 rounded-full px-3 py-1 font-semibold">Condomínio</Link>
-          <Link href="/gestao/leituras" className="bg-white/15 rounded-full px-3 py-1">Leitura</Link>
+          <Link href="/gestao/condominio" className="bg-white/15 rounded-full px-3 py-1">Condomínio</Link>
+          <Link href="/gestao/leituras" className="bg-white text-emerald-700 rounded-full px-3 py-1 font-semibold">Leitura</Link>
           <Link href="/gestao/inquilinos" className="bg-white/15 rounded-full px-3 py-1">Inquilinos</Link>
+          <Link href="/gestao/configuracao" className="bg-white/15 rounded-full px-3 py-1">Configuração</Link>
           <Link href="/login" className="bg-white/10 rounded-full px-3 py-1">Sair</Link>
         </nav>
       </header>

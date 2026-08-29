@@ -1,18 +1,31 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { cookies } from "next/headers";
+import * as jose from "jose";
+
+async function getLeiturista() {
+  const token = cookies().get("leiturista_access_token")?.value || cookies().get("access_token")?.value;
+  if (!token) return null;
+  try {
+    const { payload } = await jose.jwtVerify(token, new TextEncoder().encode(process.env.JWT_SECRET || "dev-secret"));
+    if ((payload as any).papel === "LEITURISTA") return { id: (payload as any).sub, nome: (payload as any).nome };
+  } catch {}
+  return null;
+}
 
 // POST /api/admin/leituras -> import lote { leituras: [{ unidadeId, tipo, referencia, leituraAnterior, leituraAtual, tarifa }] }
-// Em prod: proteger com requireAdmin() + audit log
+// Rastreabilidade: salva leituristaId/nome quando logado como LEITURISTA
 export async function POST(req: NextRequest) {
   const { leituras } = await req.json();
   if (!Array.isArray(leituras)) return NextResponse.json({ error: "leituras array obrigatório" }, { status: 400 });
+  const leiturista = await getLeiturista();
   const created = [];
   for (const l of leituras) {
     const consumo = Number(l.leituraAtual) - Number(l.leituraAnterior);
     const r = await prisma.leitura.upsert({
       where: { unidadeId_tipo_referencia: { unidadeId: l.unidadeId, tipo: l.tipo, referencia: l.referencia } },
-      update: { leituraAnterior: l.leituraAnterior, leituraAtual: l.leituraAtual, consumo, tarifa: l.tarifa, dataLeitura: new Date() },
-      create: { unidadeId: l.unidadeId, tipo: l.tipo, referencia: l.referencia, leituraAnterior: l.leituraAnterior, leituraAtual: l.leituraAtual, consumo, tarifa: l.tarifa, dataLeitura: new Date() }
+      update: { leituraAnterior: l.leituraAnterior, leituraAtual: l.leituraAtual, consumo, tarifa: l.tarifa, dataLeitura: new Date(), leituristaId: leiturista?.id || undefined, leituristaNome: leiturista?.nome || undefined },
+      create: { unidadeId: l.unidadeId, tipo: l.tipo, referencia: l.referencia, leituraAnterior: l.leituraAnterior, leituraAtual: l.leituraAtual, consumo, tarifa: l.tarifa, dataLeitura: new Date(), leituristaId: leiturista?.id, leituristaNome: leiturista?.nome }
     });
     created.push(r);
     // alerta consumo excessivo >20% média

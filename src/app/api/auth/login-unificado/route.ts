@@ -10,6 +10,21 @@ const REFRESH_SECRET = new TextEncoder().encode(process.env.JWT_REFRESH_SECRET |
 
 export async function POST(req: NextRequest) {
   const { email, senha } = await req.json();
+  // 0) Tenta Leiturista (acesso somente Leitura)
+  const leiturista = await prisma.leiturista.findUnique({ where: { email } });
+  if (leiturista && leiturista.ativo) {
+    const okL = await verifyPassword(senha, leiturista.senhaHash);
+    if (okL) {
+      const accessL = await new jose.SignJWT({ sub: leiturista.id, email, papel: "LEITURISTA", nome: leiturista.nome } as any).setProtectedHeader({ alg:"HS256"}).setIssuedAt().setExpirationTime("15m").sign(SECRET);
+      const jtiL = crypto.randomUUID();
+      const refreshL = await new jose.SignJWT({ sub: leiturista.id, jti: jtiL } as any).setProtectedHeader({ alg:"HS256"}).setIssuedAt().setExpirationTime("30d").sign(REFRESH_SECRET);
+      // leiturista não tem sessao table dedicada, usa cookie
+      const resL = NextResponse.json({ ok: true, papel: "LEITURISTA", redirect: "/gestao/leituras" });
+      resL.cookies.set("leiturista_access_token", accessL, { httpOnly: true, sameSite:"lax", path:"/", maxAge:15*60 });
+      resL.cookies.set("access_token", accessL, { httpOnly: true, sameSite:"lax", path:"/", maxAge:15*60 });
+      return resL;
+    }
+  }
   // 1) Tenta Inquilino
   const inquilino = await prisma.inquilino.findUnique({ where: { email } });
   if (inquilino && inquilino.ativo) {

@@ -101,12 +101,28 @@ model Leitura {
   tarifa           Decimal?    // R$/kWh ou R$/m³
   bandeira         String?
   dataLeitura      DateTime
+  leituristaId     String?
+  leituristaNome   String?
   createdAt        DateTime    @default(now())
 
   unidade          Unidade     @relation(fields: [unidadeId], references: [id], onDelete: Cascade)
 
   @@unique([unidadeId, tipo, referencia])
   @@index([unidadeId, tipo])
+}
+
+// ============ LEITURISTA ============
+model Leiturista {
+  id         String   @id @default(cuid())
+  nome       String
+  email      String   @unique // login
+  senhaHash  String
+  telefone   String?
+  regiao     String?
+  matricula  String?  @unique
+  ativo      Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 }
 
 // ============ FATURAS ============
