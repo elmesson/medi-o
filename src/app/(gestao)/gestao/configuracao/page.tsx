@@ -48,6 +48,7 @@ export default function ConfiguracaoPage(){
         <h1 className="text-xl font-bold">Configuração</h1>
         <span className="bg-zinc-900 text-white rounded-full px-3 py-1 text-xs">Leituristas</span>
         <a href="/gestao/configuracao/pix" className="bg-white border rounded-full px-3 py-1 text-xs">Pix BCB</a>
+        <a href="/gestao/configuracao/faturas" className="bg-white border rounded-full px-3 py-1 text-xs">Faturas PDF</a>
       </div>
       <p className="text-xs text-zinc-500">Crie logins exclusivos para leiturista (acesso somente à tela Leitura, com rastreabilidade e scanner QR via câmera).</p>
       {authMsg && <div className="bg-rose-50 border border-rose-200 rounded-2xl p-3 text-sm text-rose-700">⚠️ {authMsg} — <a href="/login" className="underline font-semibold">Faça login</a> como <b>master@elmesson.com.br / master123</b> (ou admin.centro) para liberar o cadastro.</div>}
