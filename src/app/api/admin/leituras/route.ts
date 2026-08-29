@@ -49,10 +49,16 @@ export async function POST(req: NextRequest) {
   }
   return NextResponse.json({ ok: true, criadas: created.length });
 }
-export async function GET() {
+export async function GET(req: NextRequest) {
   const auth = await requireGestaoOuLeiturista();
   if (!auth) return NextResponse.json({ error: "Acesso Gestão/Leiturista requerido" }, { status: 403 });
-  const leituras = await prisma.leitura.findMany({ orderBy: { referencia: "desc" }, take: 50, include: { unidade: true } });
+  const { searchParams } = new URL(req.url);
+  const referencia = searchParams.get("referencia");
+  const unidadeId = searchParams.get("unidadeId");
+  const where:any = {};
+  if (referencia) where.referencia = referencia;
+  if (unidadeId) where.unidadeId = unidadeId;
+  const leituras = await prisma.leitura.findMany({ where, orderBy: [{ referencia: "desc" }, { unidadeId: "asc" }], take: 500, include: { unidade: true } });
   return NextResponse.json(leituras);
 }
 export async function PUT(req: NextRequest) {

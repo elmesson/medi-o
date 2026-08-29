@@ -14,6 +14,9 @@ export default function LeiturasGestaoPage(){
   const [showCamera,setShowCamera]=useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const [sucesso,setSucesso]=useState<any>(null);
+  const [filtroRef,setFiltroRef]=useState("");
+  const [filtroUnidadeGrade,setFiltroUnidadeGrade]=useState("");
+  const [filtroTipoGrade,setFiltroTipoGrade]=useState("TODOS");
 
   function unidadeNome(id:string){
     const u = unidades.find((x:any)=> x.id===id);
@@ -171,20 +174,48 @@ export default function LeiturasGestaoPage(){
         </form>
       </Card>
 
+      {(() => {
+        const refs = Array.from(new Set(lista.map((l:any)=> l.referencia))).sort().reverse();
+        const filtradas = lista.filter((l:any)=>{
+          if(filtroRef && l.referencia!==filtroRef) return false;
+          if(filtroUnidadeGrade && l.unidadeId!==filtroUnidadeGrade) return false;
+          if(filtroTipoGrade!=="TODOS" && l.tipo!==filtroTipoGrade) return false;
+          return true;
+        });
+        const porRef: Record<string, any[]> = {};
+        filtradas.forEach((l:any)=> { (porRef[l.referencia] ||= []).push(l); });
+        const refsOrdenadas = Object.keys(porRef).sort().reverse();
+        return (
       <Card>
-        <div className="flex items-center justify-between"><h3 className="font-semibold text-sm">Grade completa — Leituras (rastreáveis)</h3><Badge variant="default">{lista.length} registros</Badge></div>
-        <div className="overflow-x-auto mt-3">
-          <table className="w-full text-sm">
-            <thead><tr className="text-xs text-zinc-500"><th>Unidade</th><th>Tipo</th><th>Ref</th><th>Anterior</th><th>Atual</th><th>Consumo</th><th>Leiturista</th><th>Bandeira</th><th className="text-right">Ações</th></tr></thead>
-            <tbody>
-              {lista.slice(0,20).map((l:any)=>(
-                <tr key={l.id} className="border-t"><td className="text-xs">{l.unidade?.identificacao|| unidadeNome(l.unidadeId)}</td><td className="text-center"><Badge variant="default">{l.tipo}</Badge></td><td className="text-xs text-center">{l.referencia}</td><td className="text-right">{l.leituraAnterior}</td><td className="text-right">{l.leituraAtual}</td><td className="text-right font-bold">{l.consumo}</td><td className="text-xs text-center">{l.leituristaNome|| <span className="text-zinc-400">—</span>}</td><td className="text-center text-xs">{l.bandeira||"-"}</td><td className="text-right space-x-1"><button onClick={()=>iniciarEdicao(l)} className="text-xs bg-emerald-700 text-white rounded-full px-3 py-1">Alterar</button><button onClick={()=>remover(l.id)} className="text-xs text-rose-600">Remover</button></td></tr>
-              ))}
-              {lista.length===0 && <tr><td colSpan={10} className="text-center py-6 text-zinc-500">Nenhuma leitura</td></tr>}
-            </tbody>
-          </table>
+        <div className="flex flex-wrap items-center justify-between gap-2"><h3 className="font-semibold text-sm">Grade completa — Leituras (rastreáveis)</h3><Badge variant="default">{filtradas.length}/{lista.length} registros</Badge></div>
+        <div className="grid md:grid-cols-4 gap-2 mt-3">
+          <label className="text-xs">Referência<select value={filtroRef} onChange={e=>setFiltroRef(e.target.value)} className="w-full border rounded-xl px-2 py-1.5"><option value="">Todas referências</option>{refs.map(r=><option key={r} value={r}>{r}</option>)}</select></label>
+          <label className="text-xs">Unidade<select value={filtroUnidadeGrade} onChange={e=>setFiltroUnidadeGrade(e.target.value)} className="w-full border rounded-xl px-2 py-1.5"><option value="">Todas unidades</option>{unidades.map((u:any)=><option key={u.id} value={u.id}>{u.identificacao}</option>)}</select></label>
+          <label className="text-xs">Tipo<select value={filtroTipoGrade} onChange={e=>setFiltroTipoGrade(e.target.value)} className="w-full border rounded-xl px-2 py-1.5"><option>TODOS</option><option>ENERGIA</option><option>AGUA</option><option>GAS</option></select></label>
+          <button onClick={()=>{setFiltroRef(""); setFiltroUnidadeGrade(""); setFiltroTipoGrade("TODOS");}} className="border rounded-xl px-3 py-1.5 text-xs self-end">Limpar filtros</button>
+        </div>
+        <div className="overflow-x-auto mt-3 space-y-4">
+          {(filtroRef ? [filtroRef] : refsOrdenadas).map(ref=>{
+            const itens = porRef[ref] || [];
+            if(!itens.length) return null;
+            return (
+            <div key={ref}>
+              <div className="text-xs font-bold bg-zinc-50 border rounded-xl px-3 py-1.5 flex justify-between"><span>Referência {ref}</span><span>{itens.length} leitura(s)</span></div>
+              <table className="w-full text-sm mt-1">
+                <thead><tr className="text-xs text-zinc-500"><th>Unidade</th><th>Tipo</th><th>Ref</th><th>Anterior</th><th>Atual</th><th>Consumo</th><th>Leiturista</th><th>Bandeira</th><th className="text-right">Ações</th></tr></thead>
+                <tbody>
+                  {itens.map((l:any)=>(
+                    <tr key={l.id} className="border-t"><td className="text-xs">{l.unidade?.identificacao|| unidadeNome(l.unidadeId)}</td><td className="text-center"><Badge variant="default">{l.tipo}</Badge></td><td className="text-xs text-center">{l.referencia}</td><td className="text-right">{l.leituraAnterior}</td><td className="text-right">{l.leituraAtual}</td><td className="text-right font-bold">{l.consumo}</td><td className="text-xs text-center">{l.leituristaNome|| <span className="text-zinc-400">—</span>}</td><td className="text-center text-xs">{l.bandeira||"-"}</td><td className="text-right space-x-1"><button onClick={()=>iniciarEdicao(l)} className="text-xs bg-emerald-700 text-white rounded-full px-3 py-1">Alterar</button><button onClick={()=>remover(l.id)} className="text-xs text-rose-600">Remover</button></td></tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )})}
+          {filtradas.length===0 && <div className="text-center py-6 text-zinc-500 text-sm">Nenhuma leitura{filtroRef ? ` para ${filtroRef}`:""} — selecione outra referência ou limpe filtros.</div>}
+          {lista.length===0 && <div className="text-center py-2 text-zinc-400 text-sm">Nenhuma leitura cadastrada</div>}
         </div>
       </Card>
+        )})()}
 
       {edit && (
         <div className="fixed inset-0 bg-black/50 grid place-items-center p-4 z-50" onClick={()=>setEdit(null)}>
