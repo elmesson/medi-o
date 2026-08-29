@@ -6,7 +6,7 @@ import Pix from './screens/Pix';
 import { initPush } from './lib/push';
 
 export default function App(){
-  useEffect(()=>{ initPush().catch(()=>{}); },[]);
+  useEffect(()=>{ initPush().catch(e=> console.warn('[initPush]',e)); },[]);
   return (
     <div className="min-h-screen bg-zinc-50 text-zinc-900">
       <header className="sticky top-0 bg-white border-b px-4 py-3 flex items-center gap-2"><div className="w-8 h-8 bg-emerald-600 text-white grid place-items-center rounded-xl font-bold">E</div><b>Elmesson</b> <span className="text-xs text-zinc-500">App Inquilino</span></header>

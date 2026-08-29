@@ -8,18 +8,22 @@ export default function LeituraFoto() {
   const [loading, setLoading] = useState(false);
 
   async function tirarFoto() {
-    const photo = await Camera.getPhoto({ resultType: CameraResultType.DataUrl, source: CameraSource.Camera, quality: 90 });
-    setPreview(photo.dataUrl || null);
-    if (!photo.dataUrl) return;
-    // converte DataUrl -> File
-    const res = await fetch(photo.dataUrl);
-    const blob = await res.blob();
-    const file = new File([blob], `medidor-${Date.now()}.jpg`, { type: 'image/jpeg' });
-    setLoading(true);
     try {
-      const r = await uploadFoto(file, 'BL-A-101', 'ENERGIA'); // unidade selecionada
-      setResult(r);
-    } catch (e:any) { alert(e.message); } finally { setLoading(false); }
+      const photo = await Camera.getPhoto({ resultType: CameraResultType.DataUrl, source: CameraSource.Camera, quality: 90 });
+      setPreview(photo.dataUrl || null);
+      if (!photo.dataUrl) return;
+      const res = await fetch(photo.dataUrl);
+      const blob = await res.blob();
+      const file = new File([blob], `medidor-${Date.now()}.jpg`, { type: 'image/jpeg' });
+      setLoading(true);
+      try {
+        const r = await uploadFoto(file, 'BL-A-101', 'ENERGIA');
+        setResult(r);
+      } catch (e:any) { alert('Falha upload: '+(e.message||e)); } finally { setLoading(false); }
+    } catch(e:any){
+      // permissão negada ou sem câmera não deve crashar o app
+      alert('Câmera não disponível: '+(e?.message||e)+'\nVerifique permissão em Configurações > Apps > Elmesson > Permissões > Câmera');
+    }
   }
 
   return (
