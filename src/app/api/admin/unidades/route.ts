@@ -50,6 +50,23 @@ export async function POST(req: NextRequest) {
   }
 }
 
+export async function PUT(req: NextRequest) {
+  const master = await requireMaster();
+  if (!master) return NextResponse.json({ error: "Acesso Master requerido" }, { status: 403 });
+  const { id, identificacao, bloco, numero, fracaoIdeal, administradorId } = await req.json();
+  const data:any = {};
+  if (identificacao !== undefined) data.identificacao = identificacao;
+  if (bloco !== undefined) data.bloco = bloco;
+  if (numero !== undefined) data.numero = numero;
+  if (fracaoIdeal !== undefined) data.fracaoIdeal = Number(fracaoIdeal);
+  const unidade = await prisma.unidade.update({ where: { id }, data });
+  if (administradorId !== undefined) {
+    await prisma.administradorUnidade.deleteMany({ where: { unidadeId: id } });
+    if (administradorId) await prisma.administradorUnidade.create({ data: { administradorId, unidadeId: id } });
+  }
+  return NextResponse.json(unidade);
+}
+
 export async function DELETE(req: NextRequest) {
   const master = await requireMaster();
   if (!master) return NextResponse.json({ error: "Acesso Master requerido" }, { status: 403 });
