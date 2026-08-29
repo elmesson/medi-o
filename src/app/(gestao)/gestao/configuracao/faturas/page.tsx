@@ -36,8 +36,13 @@ export default function FaturasPdfPage(){
   const filtrados = lista.filter((f:any)=>{
     if(filtroUnidade && f.unidadeId!==filtroUnidade && f.unidade?.id!==filtroUnidade) return false;
     if(filtroInquilino){
-      const inqs = inquilinosDaUnidade(f.unidadeId || f.unidade?.id);
-      if(!inqs.some((i:any)=> i.id===filtroInquilino)) return false;
+      // fatura já é per-inquilino se tem inquilinoId
+      if(f.inquilinoId || f.inquilino){
+        if((f.inquilinoId||f.inquilino?.id) !== filtroInquilino) return false;
+      } else {
+        const inqs = inquilinosDaUnidade(f.unidadeId || f.unidade?.id);
+        if(!inqs.some((i:any)=> i.id===filtroInquilino)) return false;
+      }
     }
     if(referencia && f.referencia!==referencia) return false;
     if(tipo!=="TODOS" && f.tipo!==tipo) return false;
@@ -73,12 +78,17 @@ export default function FaturasPdfPage(){
       </Card>
 
       {(() => {
-        // Expande por inquilino: cada fatura gera 1 linha por inquilino da unidade (para listar "faturas de cada inquilino")
+        // Se fatura já tem inquilino (novo modelo per-inquilino com rateio), usa direto; senão expande (legado)
         const linhas: {f:any; inquilino:any|null}[] = [];
         filtrados.forEach((f:any)=>{
-          const inqs = inquilinosDaUnidade(f.unidadeId || f.unidade?.id);
-          if(inqs.length===0) linhas.push({f, inquilino:null});
-          else inqs.forEach((inq:any)=> linhas.push({f, inquilino:inq}));
+          if(f.inquilinoId || f.inquilino){
+            const inq = f.inquilino || inquilinos.find((i:any)=> i.id===f.inquilinoId) || null;
+            linhas.push({f, inquilino: inq});
+          } else {
+            const inqs = inquilinosDaUnidade(f.unidadeId || f.unidade?.id);
+            if(inqs.length===0) linhas.push({f, inquilino:null});
+            else inqs.forEach((inq:any)=> linhas.push({f, inquilino:inq}));
+          }
         });
         async function abrirPdf(faturaId:string, inqId:string|null, nomeArq:string){
           const url = inqId ? `/api/faturas/${faturaId}/pdf?inquilinoId=${inqId}` : `/api/faturas/${faturaId}/pdf`;
