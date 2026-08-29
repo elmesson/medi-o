@@ -6,14 +6,20 @@ import { brl } from "@/lib/utils";
 
 export default function GestaoPage(){
   const [bi,setBi]=useState<any>(null);
+  const [periodo,setPeriodo]=useState("MES");
   useEffect(()=>{
-    fetch("/api/gestao/bi").then(r=>r.json()).then(j=> j.contas? setBi(j): setBi(mock())).catch(()=> setBi(mock()));
-  },[]);
+    fetch(`/api/gestao/bi?periodo=${periodo}`).then(r=>r.json()).then(j=> j.contas? setBi(j): setBi(mock())).catch(()=> setBi(mock()));
+  },[periodo]);
   if(!bi) return <div className="card">Carregando BI Gestão...</div>;
   return (
     <div className="space-y-4">
-      <h1 className="text-xl font-bold">Módulo Gestão — Dashboard BI</h1>
-      <p className="text-xs text-zinc-500">Visão por <b>Contas, Condomínio, Leitura e Inquilinos</b> e suas particularidades.</p>
+      <div className="flex items-center justify-between">
+        <h1 className="text-xl font-bold">Módulo Gestão — Dashboard BI</h1>
+        <div className="flex gap-1">
+          {["DIA","MES","SEMESTRE","ANO"].map(p=> <button key={p} onClick={()=>setPeriodo(p)} className={`px-3 py-1 rounded-full text-xs font-semibold border ${periodo===p?"bg-emerald-700 text-white border-emerald-700":"bg-white border-zinc-200"}`}>{p}</button>)}
+        </div>
+      </div>
+      <p className="text-xs text-zinc-500">Visão por <b>Contas, Condomínio, Leitura e Inquilinos</b> • Período <b>{periodo}</b> — filtra Contas/Condomínio/Leitura por referência/data e Inquilinos por criação.</p>
 
       {/* Atalhos */}
       <div className="grid md:grid-cols-4 gap-2">

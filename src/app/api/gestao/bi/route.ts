@@ -8,22 +8,47 @@ async function requireGestao() {
   if (!token) return null;
   try {
     const { payload } = await jose.jwtVerify(token, new TextEncoder().encode(process.env.JWT_SECRET || "dev-secret"));
-    if (!["MASTER","ADMINISTRADOR","PROPRIETARIO"].includes((payload as any).papel)) return null;
+    if (!["ADMINISTRADOR","PROPRIETARIO"].includes((payload as any).papel)) return null;
     return payload as any;
   } catch { return null; }
 }
 
-export async function GET() {
+export async function GET(req: Request) {
   const auth = await requireGestao();
   if (!auth) return NextResponse.json({ error: "Acesso Gestão requerido" }, { status: 403 });
+  const { searchParams } = new URL(req.url);
+  const periodo = (searchParams.get("periodo") || "MES").toUpperCase(); // DIA | MES | SEMESTRE | ANO
+  const now = new Date();
+  const hoje = now.toISOString().slice(0,10);
+  const mesAtual = now.toISOString().slice(0,7);
+  const anoAtual = String(now.getFullYear());
+  const ultimos6Meses: string[] = [];
+  for(let i=0;i<6;i++){ const d=new Date(now); d.setMonth(d.getMonth()-i); ultimos6Meses.push(d.toISOString().slice(0,7)); }
 
-  const [faturas, despesas, leituras, inquilinos, unidades] = await Promise.all([
+  function filtraPorPeriodo<T extends any>(arr: T[], getRef: (x:T)=> string | null, getData: (x:T)=> Date | string | null): T[] {
+    if(periodo==="DIA") return arr.filter(x=> {
+      const d = getData(x);
+      if(!d) return false;
+      const s = new Date(d).toISOString().slice(0,10);
+      return s===hoje;
+    });
+    if(periodo==="MES") return arr.filter(x=> (getRef(x)||"").slice(0,7)===mesAtual);
+    if(periodo==="SEMESTRE") return arr.filter(x=> ultimos6Meses.includes((getRef(x)||"").slice(0,7)));
+    if(periodo==="ANO") return arr.filter(x=> (getRef(x)||"").startsWith(anoAtual) || new Date(getData(x) as any).getFullYear().toString()===anoAtual);
+    return arr;
+  }
+
+  const [faturasAll, despesasAll, leiturasAll, inquilinosAll, unidades] = await Promise.all([
     prisma.fatura.findMany(),
     prisma.condominioDespesa.findMany({ include: { rateios: true } }),
     prisma.leitura.findMany(),
     prisma.inquilino.findMany(),
     prisma.unidade.findMany(),
   ]);
+  const faturas = filtraPorPeriodo(faturasAll, f=> (f as any).referencia, f=> (f as any).createdAt);
+  const despesas = filtraPorPeriodo(despesasAll, f=> (f as any).referencia, f=> (f as any).data);
+  const leituras = filtraPorPeriodo(leiturasAll, f=> (f as any).referencia, f=> (f as any).dataLeitura);
+  const inquilinos = filtraPorPeriodo(inquilinosAll, ()=>null, f=> (f as any).createdAt);
 
   // Contas
   const contasPorTipo = Object.fromEntries(["ENERGIA","AGUA","GAS","CONDOMINIO","TAXA_EXTRA"].map(t=>[t, faturas.filter(f=>f.tipo===t).length]));

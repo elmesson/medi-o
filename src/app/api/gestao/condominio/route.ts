@@ -9,7 +9,7 @@ async function requireGestao() {
   if (!token) return null;
   try {
     const { payload } = await jose.jwtVerify(token, new TextEncoder().encode(process.env.JWT_SECRET || "dev-secret"));
-    if (!["MASTER","ADMINISTRADOR","PROPRIETARIO"].includes((payload as any).papel)) return null;
+    if (!["ADMINISTRADOR","PROPRIETARIO"].includes((payload as any).papel)) return null;
     return payload as any;
   } catch { return null; }
 }
