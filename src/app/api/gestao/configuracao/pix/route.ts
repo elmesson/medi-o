@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { cookies } from "next/headers";
 import * as jose from "jose";
-import { validaChavePix } from "@/lib/pix/emv";
+import { validaChavePix, normalizaChavePix } from "@/lib/pix/emv";
 
 async function requireGestao() {
   const token = cookies().get("admin_access_token")?.value || cookies().get("access_token")?.value;
@@ -29,10 +29,11 @@ export async function POST(req: NextRequest) {
   const err = validaChavePix(tipoChave, chave);
   if (err) return NextResponse.json({ error: err }, { status: 400 });
   // BCB: não usar dados fictícios — exige chave real validada
+  const chaveNormalizada = normalizaChavePix(tipoChave, chave);
   try {
     const pix = await prisma.pixConfig.create({
       data: {
-        tipoChave, chave: chave.trim(), banco: banco||null, agencia: agencia||null, conta: conta||null,
+        tipoChave, chave: chaveNormalizada, banco: banco||null, agencia: agencia||null, conta: conta||null,
         titularNome: titularNome.trim().substring(0,25), titularCidade: (titularCidade||"SAO PAULO").trim().substring(0,15),
         administradorId: auth.sub
       }
@@ -51,9 +52,10 @@ export async function PUT(req: NextRequest) {
   const data:any = {};
   if (tipoChave) data.tipoChave = tipoChave;
   if (chave) {
-    const err = validaChavePix(tipoChave || (await prisma.pixConfig.findUnique({ where:{ id }}))?.tipoChave || "ALEATORIA", chave);
+    const tipo = tipoChave || (await prisma.pixConfig.findUnique({ where:{ id }}))?.tipoChave || "ALEATORIA";
+    const err = validaChavePix(tipo, chave);
     if (err) return NextResponse.json({ error: err }, { status: 400 });
-    data.chave = chave.trim();
+    data.chave = normalizaChavePix(tipo, chave);
   }
   if (banco !== undefined) data.banco = banco;
   if (agencia !== undefined) data.agencia = agencia;

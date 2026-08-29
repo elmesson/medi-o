@@ -52,10 +52,33 @@ function crc16(str: string) {
 
 export function validaChavePix(tipo: string, chave: string): string | null {
   const c = chave.trim();
-  if (tipo === "CPF") return /^\d{11}$/.test(c.replace(/\D/g, "")) ? null : "CPF deve ter 11 dígitos";
-  if (tipo === "CNPJ") return /^\d{14}$/.test(c.replace(/\D/g, "")) ? null : "CNPJ deve ter 14 dígitos";
-  if (tipo === "EMAIL") return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(c) ? null : "E-mail inválido";
-  if (tipo === "TELEFONE") return /^\+55\d{10,11}$/.test(c) ? null : "Telefone deve ser +55DDDXXXXXXXX";
-  if (tipo === "ALEATORIA") return /^[0-9a-f-]{32,36}$/i.test(c) ? null : "Chave aleatória deve ser UUID";
+  if (tipo === "CPF") return /^\d{11}$/.test(c.replace(/\D/g, "")) ? null : "CPF deve ter 11 dígitos (ex: 05512345655)";
+  if (tipo === "CNPJ") return /^\d{14}$/.test(c.replace(/\D/g, "")) ? null : "CNPJ deve ter 14 dígitos (ex: 11222333000181)";
+  if (tipo === "EMAIL") return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(c) ? null : "E-mail inválido (ex: seu@email.com)";
+  if (tipo === "TELEFONE") {
+    const digits = c.replace(/\D/g, "");
+    if (/^\d{10,11}$/.test(digits)) return null;
+    if (/^55\d{10,11}$/.test(digits)) return null;
+    if (/^\+55\d{10,11}$/.test(c)) return null;
+    return "Telefone aceita (11) 99999-9999, 11999999999 ou +5511999999999";
+  }
+  if (tipo === "ALEATORIA") {
+    const clean = c.replace(/-/g, "");
+    if (/^[0-9a-f]{32}$/i.test(clean)) return null;
+    if (/^[0-9a-f-]{36}$/i.test(c)) return null;
+    return "Aleatória deve ser UUID (ex: 123e4567-e89b-12d3-a456-426614174000)";
+  }
   return "Tipo inválido";
+}
+
+export function normalizaChavePix(tipo: string, chave: string): string {
+  const c = chave.trim();
+  if (tipo === "CPF" || tipo === "CNPJ") return c.replace(/\D/g, "");
+  if (tipo === "TELEFONE") {
+    const digits = c.replace(/\D/g, "");
+    if (digits.startsWith("55")) return `+${digits}`;
+    return `+55${digits}`;
+  }
+  if (tipo === "ALEATORIA") return c.toLowerCase();
+  return c;
 }
