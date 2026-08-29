@@ -2,6 +2,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { UserBadge } from "@/components/UserBadge";
+import { LogoutButton } from "@/components/LogoutButton";
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const isActive = (href: string) => pathname === href || pathname.startsWith(href + "/");
@@ -23,7 +24,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             const active = isActive(n.href);
             return <Link key={n.href} href={n.href} className={`rounded-full px-3 py-1 ${active?"bg-emerald-500 text-white font-semibold":"bg-white/10 hover:bg-white/20"}`}>{n.label}</Link>;
           })}
-          <Link href="/admin/login" className="bg-white text-zinc-900 rounded-full px-3 py-1">Login Master</Link>
+          <LogoutButton className="bg-white text-zinc-900 rounded-full px-3 py-1 text-xs" />
         </nav>
       </header>
       <main className="max-w-7xl mx-auto p-4">{children}</main>

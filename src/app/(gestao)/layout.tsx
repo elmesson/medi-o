@@ -2,6 +2,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { UserBadge } from "@/components/UserBadge";
+import { LogoutButton } from "@/components/LogoutButton";
 export default function GestaoLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const isActive = (href: string) => pathname === href || pathname.startsWith(href + "/") || pathname === href;
@@ -26,7 +27,7 @@ export default function GestaoLayout({ children }: { children: React.ReactNode }
             const active = isActive(n.href);
             return <Link key={n.href} href={n.href} className={`rounded-full px-3 py-1 ${active?"bg-white text-emerald-700 font-semibold":"bg-white/15"}`}>{n.label}</Link>;
           })}
-          <Link href="/login" className="bg-white/10 rounded-full px-3 py-1">Sair</Link>
+          <LogoutButton />
         </nav>
       </header>
       <main className="max-w-7xl mx-auto p-4">{children}</main>

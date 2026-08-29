@@ -3,6 +3,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Home, Gauge, Receipt, History, QrCode, MessageCircle, AlertTriangle, Bell, User, TrendingUp } from "lucide-react";
 import { UserBadge } from "@/components/UserBadge";
+import { LogoutButton } from "@/components/LogoutButton";
 
 const nav = [
   { href: "/portal", icon: Home, label: "Dashboard" },
@@ -30,7 +31,7 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
           </Link>
           <div className="flex items-center gap-2 text-sm">
             <UserBadge fallback="Portal do Inquilino" />
-            <Link href="/login" className="text-muted hover:text-ink">Sair</Link>
+            <LogoutButton className="text-muted hover:text-ink text-sm" />
           </div>
         </div>
       </header>
