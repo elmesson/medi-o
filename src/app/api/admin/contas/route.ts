@@ -42,7 +42,8 @@ export async function POST(req: NextRequest) {
       descricaoDemonstrativo: descricaoDemonstrativo || null,
       exibirDemonstrativo: isCondo ? true : (exibirDemonstrativo !== undefined ? exibirDemonstrativo : true),
       bandeira: bandeiraVal,
-    }
+    },
+    include: { unidade: true }
   });
   return NextResponse.json(fatura);
 }
@@ -71,7 +72,7 @@ export async function PUT(req: NextRequest) {
     const tipoFinal = tipo || current?.tipo;
     data.bandeira = tipoFinal === "ENERGIA" ? bandeira : null;
   }
-  const fatura = await prisma.fatura.update({ where: { id }, data });
+  const fatura = await prisma.fatura.update({ where: { id }, data, include: { unidade: true } });
   return NextResponse.json(fatura);
 }
 
