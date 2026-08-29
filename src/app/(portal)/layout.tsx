@@ -2,6 +2,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Home, Gauge, Receipt, History, QrCode, MessageCircle, AlertTriangle, Bell, User, TrendingUp } from "lucide-react";
+import { UserBadge } from "@/components/UserBadge";
 
 const nav = [
   { href: "/portal", icon: Home, label: "Dashboard" },
@@ -28,6 +29,7 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
             <span className="font-bold">Elmesson</span><span className="text-muted text-sm hidden sm:inline">• Portal do Inquilino</span>
           </Link>
           <div className="flex items-center gap-2 text-sm">
+            <UserBadge fallback="Portal do Inquilino" />
             <Link href="/login" className="text-muted hover:text-ink">Sair</Link>
           </div>
         </div>

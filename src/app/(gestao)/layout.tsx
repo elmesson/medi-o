@@ -1,6 +1,7 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { UserBadge } from "@/components/UserBadge";
 export default function GestaoLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const isActive = (href: string) => pathname === href || pathname.startsWith(href + "/") || pathname === href;
@@ -18,6 +19,7 @@ export default function GestaoLayout({ children }: { children: React.ReactNode }
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 bg-white text-emerald-700 grid place-items-center rounded-xl font-bold">G</div>
           <b>Gestão</b><span className="text-xs opacity-80">Energia • Água • Gás • Condomínio</span>
+          <UserBadge />
         </div>
         <nav className="flex gap-2 text-xs">
           {nav.map(n=>{

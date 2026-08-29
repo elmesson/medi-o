@@ -1,6 +1,7 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { UserBadge } from "@/components/UserBadge";
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const isActive = (href: string) => pathname === href || pathname.startsWith(href + "/");
@@ -15,6 +16,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 bg-white text-zinc-900 grid place-items-center rounded-xl font-bold">A</div>
           <b>Elmesson Admin</b><span className="text-xs opacity-60">Master / Gestão</span>
+          <UserBadge />
         </div>
         <nav className="flex gap-2 text-xs">
           {nav.map(n=>{
